@@ -99,15 +99,15 @@ const WoodenFish: React.FC<WoodenFishProps> = ({ hpPercentage, onClick, isHit, m
         viewBox="0 0 200 200"
         className={`w-full h-full transition-transform origin-bottom ${
             isHit && !isBroken
-            ? 'scale-x-105 scale-y-95 duration-75 ease-out' // 弹性挤压效果
+            ? 'scale-x-110 scale-y-90 duration-50 ease-out' // 增强弹性挤压效果：更扁(90%)更宽(110%)，速度更快(50ms)
             : 'scale-100 duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
         }`}
         style={{
-            // 视觉闪烁：击打时增加亮度、饱和度，并微调阴影使其看起来被压得更低
+            // 视觉闪烁：击打时显著增加亮度(1.2)和饱和度(1.4)，阴影压得更低，提供强烈的视觉反馈
             filter: isBroken 
                 ? "none" 
                 : isHit 
-                    ? "drop-shadow(2px 2px 0px rgba(0,0,0,0.2)) brightness(1.1) saturate(1.2)" 
+                    ? "drop-shadow(1px 1px 0px rgba(0,0,0,0.3)) brightness(1.2) saturate(1.4)" 
                     : "drop-shadow(5px 5px 0px rgba(0,0,0,0.1))"
         }}
       >

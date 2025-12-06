@@ -79,6 +79,19 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
                 if (snapshotTitle) {
                     snapshotTitle.style.display = 'flex'; // Use flex to center properly
                     snapshotTitle.classList.remove('hidden');
+                    
+                    // Force removing any transform/rotation styles that might linger
+                    snapshotTitle.style.transform = 'none';
+                    const h1 = snapshotTitle.querySelector('h1');
+                    if (h1) {
+                         h1.style.transform = 'none';
+                         // Strip gradient background classes just in case
+                         h1.style.backgroundImage = 'none';
+                         h1.style.backgroundClip = 'border-box';
+                         h1.style.webkitBackgroundClip = 'border-box';
+                         h1.style.color = '#ffffff'; // Force white text
+                         h1.style.backgroundColor = '#dc2626'; // Force red background
+                    }
                 }
 
                 // Make watermark visible in the clone
@@ -138,9 +151,9 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
                 </div>
 
                 {/* 2. Snapshot Title: Solid styling for Screenshot (Hidden normally) */}
-                {/* Fixed: Removed rotation, changed to flex, removed leading-none for perfect centering */}
+                {/* Fixed: Use pt-5 pb-6 to visually center text by correcting html2canvas baseline shift */}
                 <div className="snapshot-title hidden mb-2 w-full flex justify-center">
-                    <h1 className="text-5xl font-black text-white bg-red-600 px-10 py-5 rounded-full border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap">
+                    <h1 className="text-5xl font-black text-white bg-red-600 px-12 pt-5 pb-6 rounded-full border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap leading-none">
                         {title}
                     </h1>
                 </div>
@@ -265,4 +278,3 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
 };
 
 export default GameCompleteModal;
-    
