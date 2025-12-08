@@ -11,7 +11,14 @@
   "dependencies": {
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "html2canvas": "1.4.1"
+    "html2canvas": "1.4.1",
+    "./App": "latest",
+    "./components/WoodenFish": "latest",
+    "./components/LevelCompleteModal": "latest",
+    "./components/GameCompleteModal": "latest",
+    "./components/PauseModal": "latest",
+    "./types": "latest",
+    "./utils/audio": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

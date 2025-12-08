@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <base href="./" />
     <title>禅意木鱼</title>
+    <!-- Babel Standalone for in-browser JSX/TSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
     <style>
@@ -113,6 +115,13 @@
     "react-dom": "https://esm.sh/react-dom@18.2.0",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+    "./App": "./App.tsx",
+    "./components/WoodenFish": "./components/WoodenFish.tsx",
+    "./components/LevelCompleteModal": "./components/LevelCompleteModal.tsx",
+    "./components/GameCompleteModal": "./components/GameCompleteModal.tsx",
+    "./components/PauseModal": "./components/PauseModal.tsx",
+    "./types": "./types.ts",
+    "./utils/audio": "./utils/audio.ts",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/"
   }
@@ -121,6 +130,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <!-- Load index.tsx via Babel Standalone with "text/babel" type -->
+    <script type="text/babel" data-presets="react,typescript" data-type="module" src="./index.tsx"></script>
   </body>
 </html>
