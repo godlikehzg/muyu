@@ -52,7 +52,7 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
         const canvas = await html2canvas(cardRef.current, {
             useCORS: true,
             scale: 2, // High resolution
-            backgroundColor: null, 
+            backgroundColor: '#fff7ed', // Set explicit background color to prevent gray transparency artifacts
             ignoreElements: (element) => {
                 // Optionally ignore the share button itself in the screenshot if desired
                 return false;
@@ -65,6 +65,12 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
                     clonedCard.style.overflow = 'visible';
                     clonedCard.style.height = 'auto';
                     clonedCard.style.paddingBottom = '60px'; // Extra padding for watermark
+                    
+                    // Remove shadows and animations to prevent gray overlay artifacts
+                    clonedCard.style.boxShadow = 'none';
+                    clonedCard.style.animation = 'none';
+                    clonedCard.classList.remove('animate-bounce-in');
+                    clonedCard.classList.remove('shadow-[0_0_50px_rgba(234,179,8,0.5)]');
                 }
 
                 // Dual Title Strategy:
