@@ -157,9 +157,9 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
                 </div>
 
                 {/* 2. Snapshot Title: Solid styling for Screenshot (Hidden normally) */}
-                {/* Fixed: Use pt-3 pb-8 to visually center text by moving it upwards (compensating for html2canvas rendering low) */}
+                {/* Fixed: Use symmetric padding (py-6) to ensure perfectly equal top/bottom spacing */}
                 <div className="snapshot-title hidden mb-2 w-full flex justify-center">
-                    <h1 className="text-5xl font-black text-white bg-red-600 px-12 pt-3 pb-8 rounded-full border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap leading-none">
+                    <h1 className="text-5xl font-black text-white bg-red-600 px-12 py-6 rounded-full border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap leading-none">
                         {title}
                     </h1>
                 </div>

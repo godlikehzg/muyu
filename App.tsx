@@ -21,10 +21,10 @@ interface LevelConfig {
 // Strictly Hard Mode Configuration
 const LEVEL_CONFIGS: LevelConfig[] = [
   { 
-    // Level 1: HP 1,314. Regen 0.
-    // Goal: Tutorial. Easy.
+    // Level 1: HP 1,314. Regen 3% (~40/s).
+    // Goal: Tutorial. Constant pressure but beatable.
     hp: 1314, 
-    regenRate: 0, 
+    regenRate: 0.03, 
     baseDamage: 5, 
     comboMultiplier: 1, 
     material: MaterialType.WOOD,
@@ -196,9 +196,9 @@ const App: React.FC = () => {
         if (gameStatus !== GameStatus.PLAYING || prev.currentHp <= 0) return prev;
         
         const config = LEVEL_CONFIGS[prev.level - 1] || LEVEL_CONFIGS[0];
-        const timeSinceTap = Date.now() - prev.lastTapTime;
+        // Note: We removed the `timeSinceTap` check to make regen constant pressure (DPS check)
         
-        if (timeSinceTap > REGEN_DELAY_MS && prev.currentHp < prev.maxHp) {
+        if (prev.currentHp < prev.maxHp) {
             const regenAmount = (prev.maxHp * config.regenRate * deltaTime) / 1000;
             const newHp = Math.min(prev.maxHp, prev.currentHp + regenAmount);
             return { ...prev, currentHp: newHp };
