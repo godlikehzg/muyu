@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { LevelStats } from '../types';
 import html2canvas from 'html2canvas';
+import Loader from './Loader';
 
 interface GameCompleteModalProps {
   history: LevelStats[];
@@ -18,7 +19,8 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
   // Aggregated Stats
   const totalTime = history.reduce((acc, curr) => acc + curr.timeTaken, 0);
   const totalTaps = history.reduce((acc, curr) => acc + curr.tapCount, 0);
-  const totalDamage = history.reduce((acc, curr) => acc + (curr.totalDamage || 0), 0);
+  // Use enemiesKilled instead of totalDamage as it is tracked in LevelStats
+  const totalEnemiesKilled = history.reduce((acc, curr) => acc + (curr.enemiesKilled || 0), 0);
   const maxComboOverall = Math.max(...history.map(h => h.maxCombo), 0);
   const avgCPS = totalTime > 0 ? totalTaps / totalTime : 0;
 
@@ -47,7 +49,7 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
     
     try {
         // Wait a bit for layout to settle if needed
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 800)); // Increased slight delay for loader visibility
 
         const canvas = await html2canvas(cardRef.current, {
             useCORS: true,
@@ -124,6 +126,9 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Show Full Screen Loader during generation */}
+      {isGenerating && <Loader text="生成法贴中..." className="bg-black/40 backdrop-blur-sm !bg-opacity-40" />}
+
       {/* Background Overlay with Blur */}
       <div className="absolute inset-0 bg-black/80 backdrop-blur-md"></div>
 
@@ -136,11 +141,11 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
       <div 
         id="game-complete-card" 
         ref={cardRef} 
-        className="relative bg-gradient-to-br from-yellow-50 to-orange-100 border-4 border-yellow-600 rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(234,179,8,0.5)] flex flex-col max-h-[90vh] animate-bounce-in overflow-hidden"
+        className="relative bg-gradient-to-br from-yellow-50 to-orange-100 border-2 border-yellow-800 w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] animate-bounce-in overflow-hidden border-sketchy"
       >
         
         {/* Top Decorator (Fixed) */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-300 z-20"></div>
+        <div className="absolute top-0 left-0 w-full h-3 bg-yellow-400 z-20 border-b-2 border-black/20"></div>
 
         {/* Scrollable Content Area */}
         <div className="overflow-y-auto p-8 flex flex-col items-center text-center w-full relative z-10 scrollbar-hide">
@@ -149,17 +154,16 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
             <div className="mb-6 relative w-full flex flex-col items-center">
                 <div className="text-yellow-800 text-sm font-bold tracking-[0.5em] mb-4 uppercase">FINAL CLEAR</div>
                 
-                {/* 1. Original Title: Conspicuous background for Web View */}
+                {/* 1. Original Title */}
                 <div className="original-title mb-2">
-                    <h1 className="text-5xl font-black text-white bg-gradient-to-r from-red-600 via-orange-500 to-red-600 px-10 py-4 rounded-full shadow-lg inline-flex items-center justify-center transform -rotate-2 border-4 border-yellow-300 leading-none tracking-widest min-w-[260px] whitespace-nowrap">
+                    <h1 className="text-5xl font-black text-white bg-red-600 px-10 py-4 border-4 border-yellow-300 shadow-md inline-flex items-center justify-center transform -rotate-2 border-sketchy-md leading-none tracking-widest min-w-[260px] whitespace-nowrap">
                         {title}
                     </h1>
                 </div>
 
                 {/* 2. Snapshot Title: Solid styling for Screenshot (Hidden normally) */}
-                {/* Fixed: Use symmetric padding (py-6) to ensure perfectly equal top/bottom spacing */}
                 <div className="snapshot-title hidden mb-2 w-full flex justify-center">
-                    <h1 className="text-5xl font-black text-white bg-red-600 px-12 py-6 rounded-full border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap leading-none">
+                    <h1 className="text-5xl font-black text-white bg-red-600 px-12 py-6 border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap leading-none border-sketchy-md">
                         {title}
                     </h1>
                 </div>
@@ -169,19 +173,19 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
 
             {/* Stats Grid - 2x2 Layout */}
             <div className="w-full grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm">
+                <div className="bg-white/80 p-3 border-2 border-yellow-800 shadow-sm border-sketchy-sm transform rotate-1">
                     <div className="text-xs text-gray-600 font-bold mb-1">总耗时</div>
                     <div className="text-2xl font-black text-gray-900">{totalTime.toFixed(1)}s</div>
                 </div>
-                <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm">
+                <div className="bg-white/80 p-3 border-2 border-yellow-800 shadow-sm border-sketchy-sm transform -rotate-1">
                     <div className="text-xs text-gray-600 font-bold mb-1">总敲击数</div>
                     <div className="text-2xl font-black text-gray-900">{totalTaps}</div>
                 </div>
-                <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm">
+                <div className="bg-white/80 p-3 border-2 border-yellow-800 shadow-sm border-sketchy-sm transform -rotate-1">
                     <div className="text-xs text-gray-600 font-bold mb-1">消除烦恼</div>
-                    <div className="text-2xl font-black text-gray-900">{totalDamage.toLocaleString()}</div>
+                    <div className="text-2xl font-black text-gray-900">{totalEnemiesKilled.toLocaleString()}</div>
                 </div>
-                <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm">
+                <div className="bg-white/80 p-3 border-2 border-yellow-800 shadow-sm border-sketchy-sm transform rotate-1">
                     <div className="text-xs text-gray-600 font-bold mb-1">最高连击</div>
                     <div className="text-2xl font-black text-red-600">{maxComboOverall}</div>
                 </div>
@@ -191,14 +195,14 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
             <div className="w-full mb-6">
                 <button 
                     onClick={() => setShowDetails(!showDetails)}
-                    className="text-yellow-700 text-sm font-bold underline hover:text-yellow-900 mb-2"
+                    className="text-yellow-700 text-sm font-bold underline hover:text-yellow-900 mb-2 decoration-wavy decoration-2"
                     data-html2canvas-ignore
                 >
                     {showDetails ? "收起每关详情" : "查看每关详情"}
                 </button>
                 
                 {showDetails && (
-                    <div className="w-full bg-white rounded-lg p-2 text-xs md:text-sm border border-yellow-200 animate-fade-in shadow-inner overflow-x-auto">
+                    <div className="w-full bg-white rounded-lg p-2 text-xs md:text-sm border-2 border-yellow-300 animate-fade-in shadow-inner overflow-x-auto border-sketchy-sm">
                         <table className="w-full text-left min-w-[300px] text-gray-900">
                             <thead>
                                 <tr className="border-b-2 border-yellow-300 text-yellow-900">
@@ -216,7 +220,7 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
                                         <td className="py-2 text-center font-bold">{h.timeTaken.toFixed(1)}s</td>
                                         <td className="py-2 text-center font-bold">{h.tapCount}</td>
                                         <td className="py-2 text-center text-red-600 font-bold">{h.maxCombo}</td>
-                                        <td className="py-2 pr-2 text-right font-bold text-gray-800">{h.totalDamage.toLocaleString()}</td>
+                                        <td className="py-2 pr-2 text-right font-bold text-gray-800">{h.enemiesKilled.toLocaleString()}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -230,15 +234,15 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
             <button 
                 onClick={handleShare}
                 disabled={isGenerating}
-                className="w-full bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-4 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center space-x-2 border-b-4 border-yellow-700"
+                className="w-full bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-4 border-2 border-yellow-800 shadow-md transform transition active:scale-95 flex items-center justify-center space-x-2 border-sketchy-btn"
                 data-html2canvas-ignore
             >
-                <span className="text-lg">{isGenerating ? '生成中...' : '✨ 炫耀一下 (生成海报)'}</span>
+                <span className="text-lg">✨ 炫耀一下 (生成海报)</span>
             </button>
             
             <button 
                 onClick={onRestart}
-                className="w-full bg-white border-2 border-yellow-600 text-yellow-800 font-bold py-3 rounded-xl hover:bg-yellow-50 transition active:scale-95"
+                className="w-full bg-white border-2 border-yellow-800 text-yellow-800 font-bold py-3 hover:bg-yellow-50 transition active:scale-95 border-sketchy-btn"
                 data-html2canvas-ignore
             >
                 重新修行
@@ -252,7 +256,7 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
         </div>
 
         {/* Bottom Decorator (Fixed) */}
-        <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-300 z-20"></div>
+        <div className="absolute bottom-0 left-0 w-full h-3 bg-yellow-400 z-20 border-t-2 border-black/20"></div>
 
       </div>
 
@@ -266,7 +270,7 @@ const GameCompleteModal: React.FC<GameCompleteModalProps> = ({ history, onRestar
              <img 
                src={shareImage} 
                alt="Achievement" 
-               className="w-full max-w-sm rounded-xl shadow-2xl border-4 border-yellow-500/50 max-h-[80vh] object-contain"
+               className="w-full max-w-sm border-4 border-white shadow-2xl max-h-[80vh] object-contain border-sketchy-sm"
              />
 
              <button 

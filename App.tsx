@@ -1,128 +1,93 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import WoodenFish from './components/WoodenFish';
-import LevelCompleteModal from './components/LevelCompleteModal';
 import GameCompleteModal from './components/GameCompleteModal';
 import PauseModal from './components/PauseModal';
-import { GameState, GameStatus, LevelStats, FloatingText, Ripple, MaterialType } from './types';
-import { playTapSound, playBreakSound, playWinSound } from './utils/audio';
+import LevelInfoModal from './components/LevelInfoModal';
+import LevelFailedModal from './components/LevelFailedModal';
+import UpgradeModal from './components/UpgradeModal';
+import Loader from './components/Loader';
 
-// --- Level Configuration ---
-// Total Worry Goal: 5,201,314
-interface LevelConfig {
-  hp: number;
-  regenRate: number; // Percent per second
-  baseDamage: number;
-  comboMultiplier: number; // Damage += combo * multiplier
-  material: MaterialType;
-  difficultyText: string;
-}
+import { GameState, GameStatus, LevelStats, FloatingText, HitEffect, Ripple, Enemy, Projectile, PlayerStats, UpgradeOption } from './types';
+import { playTapSound, playBreakSound, initAudio } from './utils/audio';
+import { WAVE_CONFIGS, INITIAL_PLAYER_STATS, ENEMY_WORDS, BOSS_WORDS } from './gameConfig';
 
-// Strictly Hard Mode Configuration
-const LEVEL_CONFIGS: LevelConfig[] = [
-  { 
-    // Level 1: HP 1,314. Regen 3% (~40/s).
-    // Goal: Tutorial. Constant pressure but beatable.
-    hp: 1314, 
-    regenRate: 0.03, 
-    baseDamage: 5, 
-    comboMultiplier: 1, 
-    material: MaterialType.WOOD,
-    difficultyText: '入门'
-  },
-  { 
-    // Level 2: HP 52,000. Regen 11.5% (6,000/s).
-    // Goal: Filter (30% Pass).
-    // Base 1, Multiplier 6.
-    hp: 52000, 
-    regenRate: 0.115, 
-    baseDamage: 1, 
-    comboMultiplier: 6, 
-    material: MaterialType.COPPER,
-    difficultyText: '困难'
-  },
-  { 
-    // Level 3: HP 520,000. Regen 17% (88,400/s).
-    // Goal: Filter (20% Pass).
-    // Base 1, Multiplier 25.
-    hp: 520000, 
-    regenRate: 0.17, 
-    baseDamage: 1, 
-    comboMultiplier: 25, 
-    material: MaterialType.IRON,
-    difficultyText: '极难'
-  },
-  { 
-    // Level 4: HP 1,314,000. Regen 25% (328,500/s).
-    // Goal: Hell (5% Pass).
-    // Base 1, Multiplier 60.
-    hp: 1314000, 
-    regenRate: 0.25, 
-    baseDamage: 1, 
-    comboMultiplier: 60, 
-    material: MaterialType.STEEL,
-    difficultyText: '地狱'
-  },
-  { 
-    // Level 5: HP 3,314,000. Regen 35% (1,159,900/s).
-    // Goal: Impossible (1% Pass).
-    // Base 1, Multiplier 120.
-    hp: 3314000, 
-    regenRate: 0.35, 
-    baseDamage: 1, 
-    comboMultiplier: 120, 
-    material: MaterialType.DIAMOND,
-    difficultyText: '非人'
-  }
-];
-
-const REGEN_DELAY_MS = 1000; 
-const COMBO_TIMEOUT_MS = 250; // Strict 250ms window
+const BASE_HP = 3; // Base Player lives
 
 const App: React.FC = () => {
   // --- State ---
+  const [isLoading, setIsLoading] = useState(true); // Initial loading state
   const [gameState, setGameState] = useState<GameState>({
     level: 1,
-    currentHp: LEVEL_CONFIGS[0].hp,
-    maxHp: LEVEL_CONFIGS[0].hp,
+    currentHp: BASE_HP,
+    maxHp: BASE_HP,
     combo: 0,
-    tapCount: 0,
+    score: 0,
     isPlaying: false,
+    isPaused: false,
     levelStartTime: null,
-    lastTapTime: 0,
-    maxComboThisLevel: 0,
-    damageDealtThisLevel: 0,
+    enemiesKilledThisLevel: 0
   });
 
+  const [playerStats, setPlayerStats] = useState<PlayerStats>(INITIAL_PLAYER_STATS);
   const [gameStatus, setGameStatus] = useState<GameStatus>(GameStatus.IDLE);
   const [gameHistory, setGameHistory] = useState<LevelStats[]>([]);
-  const [isHit, setIsHit] = useState(false); // Visual recoil state
+  
+  // Entities
+  const [enemies, setEnemies] = useState<Enemy[]>([]);
+  const [projectiles, setProjectiles] = useState<Projectile[]>([]);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [ripples, setRipples] = useState<Ripple[]>([]);
-  const [levelStats, setLevelStats] = useState<LevelStats | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [hitEffects, setHitEffects] = useState<HitEffect[]>([]);
+  
+  // Visuals
+  const [isHit, setIsHit] = useState(false);
 
-  // Use a ref to track if level 5 completion has triggered "Game Complete" modal
-  const [showGameComplete, setShowGameComplete] = useState(false);
-  // Add state to control Level Complete Modal visibility (delayed)
-  const [showLevelComplete, setShowLevelComplete] = useState(false);
+  // Modals
+  const [showLevelInfo, setShowLevelInfo] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
 
+  // Refs for Loop
   const requestRef = useRef<number | undefined>(undefined);
-  const lastTimeRef = useRef<number | undefined>(undefined);
-  const comboTimeoutRef = useRef<number | undefined>(undefined);
-  const pauseStartTimeRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
+  const lastSpawnTimeRef = useRef<number>(0);
+  const enemiesSpawnedCountRef = useRef<number>(0);
+  
+  // Random rotation for hearts to look hand-placed
+  const heartRotations = useRef<number[]>([]);
+  
+  // Initial Load Effect
+  useEffect(() => {
+    if (heartRotations.current.length === 0) {
+        heartRotations.current = Array.from({length: 20}, () => (Math.random() - 0.5) * 20);
+    }
+    
+    // Simulate loading assets/fonts
+    const timer = setTimeout(() => {
+        setIsLoading(false);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
-  // --- Derived State Helpers ---
-  const getCurrentConfig = () => LEVEL_CONFIGS[gameState.level - 1] || LEVEL_CONFIGS[LEVEL_CONFIGS.length - 1];
+  // --- Derived ---
+  const getCurrentWaveConfig = () => WAVE_CONFIGS[Math.min(gameState.level - 1, WAVE_CONFIGS.length - 1)];
 
-  // --- Helpers ---
-  const spawnFloatingText = (x: number, y: number, text: string) => {
+  // --- Helper: Spawning ---
+  const spawnFloatingText = (x: number, y: number, text: string, color: string, scale = 1) => {
     const id = Date.now() + Math.random();
-    const rotation = (Math.random() - 0.5) * 40; // -20 to 20 degrees
-    setFloatingTexts(prev => [...prev, { id, x, y, text, opacity: 1, rotation }]);
+    setFloatingTexts(prev => [...prev, { id, x, y, text, opacity: 1, rotation: (Math.random()-0.5)*25, color, scale }]);
     setTimeout(() => {
       setFloatingTexts(prev => prev.filter(ft => ft.id !== id));
     }, 800);
+  };
+
+  const spawnHitEffect = (x: number, y: number, isCrit: boolean) => {
+    const id = Date.now() + Math.random();
+    setHitEffects(prev => [...prev, { id, x, y, isCrit }]);
+    setTimeout(() => {
+      setHitEffects(prev => prev.filter(h => h.id !== id));
+    }, 300);
   };
 
   const spawnRipple = (x: number, y: number) => {
@@ -130,502 +95,718 @@ const App: React.FC = () => {
     setRipples(prev => [...prev, { id, x, y }]);
     setTimeout(() => {
         setRipples(prev => prev.filter(r => r.id !== id));
-    }, 500); // Ripple duration
+    }, 500); 
   };
 
-  // --- Timer Effect ---
-  useEffect(() => {
-    let interval: number;
-    if (gameStatus === GameStatus.PLAYING && gameState.levelStartTime) {
-      interval = window.setInterval(() => {
-        setElapsedTime((Date.now() - gameState.levelStartTime!) / 1000);
-      }, 100);
+  const spawnEnemy = (config: any) => {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.max(window.innerWidth, window.innerHeight) * 0.7; // Spawn further outside
+    const x = window.innerWidth / 2 + Math.cos(angle) * radius;
+    const y = window.innerHeight / 2 + Math.sin(angle) * radius;
+    
+    const isBoss = Math.random() < config.bossChance;
+    const wordList = isBoss ? BOSS_WORDS : ENEMY_WORDS;
+    const text = wordList[Math.floor(Math.random() * wordList.length)];
+    
+    const enemy: Enemy = {
+      id: Date.now() + Math.random(),
+      x,
+      y,
+      text,
+      hp: isBoss ? config.enemyHp * 5 : config.enemyHp,
+      maxHp: isBoss ? config.enemyHp * 5 : config.enemyHp,
+      speed: isBoss ? config.enemySpeed * 0.5 : config.enemySpeed,
+      isBoss
+    };
+    
+    setEnemies(prev => [...prev, enemy]);
+    enemiesSpawnedCountRef.current += 1;
+  };
+
+  const shootProjectile = (target: Enemy | null, type: 'NORMAL' | 'SPLIT' = 'NORMAL') => {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    const isCrit = Math.random() < playerStats.critChance;
+    const damage = isCrit ? playerStats.attackDamage * playerStats.critMultiplier : playerStats.attackDamage;
+
+    // Check if target is visible on screen (with a small buffer)
+    const padding = 50;
+    const isTargetVisible = target && 
+                            target.x > -padding && target.x < window.innerWidth + padding &&
+                            target.y > -padding && target.y < window.innerHeight + padding;
+
+    let projectile: Projectile;
+
+    if (isTargetVisible && target) {
+        // HOMING MODE: Target is visible
+        projectile = {
+            id: Date.now() + Math.random(),
+            x: centerX,
+            y: centerY,
+            targetId: target.id,
+            speed: playerStats.projectileSpeed,
+            damage,
+            isCrit,
+            type
+        };
+    } else {
+        // RANDOM MODE: Target is off-screen or null
+        const angle = Math.random() * Math.PI * 2;
+        const vx = Math.cos(angle) * playerStats.projectileSpeed;
+        const vy = Math.sin(angle) * playerStats.projectileSpeed;
+
+        projectile = {
+            id: Date.now() + Math.random(),
+            x: centerX,
+            y: centerY,
+            // No targetId -> Non-homing
+            vx, 
+            vy,
+            speed: playerStats.projectileSpeed,
+            damage,
+            isCrit,
+            type
+        };
     }
-    return () => clearInterval(interval);
-  }, [gameStatus, gameState.levelStartTime]);
 
-  // --- Victory Check Effect ---
-  useEffect(() => {
-    if (gameState.currentHp <= 0 && gameStatus !== GameStatus.VICTORY) {
-      // Clear combo timer on victory
-      if (comboTimeoutRef.current) {
-        window.clearTimeout(comboTimeoutRef.current);
-      }
-      
-      playBreakSound();
-      
-      // Delay victory sound slightly
-      setTimeout(() => {
-        playWinSound();
-      }, 600);
+    setProjectiles(prev => [...prev, projectile]);
+  };
 
-      setGameStatus(GameStatus.VICTORY);
-      
-      const now = Date.now();
-      const startTime = gameState.levelStartTime || now;
-      const timeTaken = Math.max(0.1, (now - startTime) / 1000); 
-      
-      // Calculate total damage dealt
-      const damageDealt = gameState.damageDealtThisLevel;
-
-      const currentStats: LevelStats = {
-        level: gameState.level,
-        tapCount: gameState.tapCount,
-        maxCombo: gameState.maxComboThisLevel,
-        timeTaken,
-        totalDamage: damageDealt, 
-        damageHistory: [],
-      };
-
-      setLevelStats(currentStats);
-      
-      // Always show Level Complete Modal first, even for level 5
-      setTimeout(() => setShowLevelComplete(true), 1200); 
-      
-      setGameState(prev => ({ ...prev, isPlaying: false }));
-    }
-  }, [gameState.currentHp, gameState.levelStartTime, gameState.level, gameState.tapCount, gameState.maxComboThisLevel, gameState.damageDealtThisLevel, gameStatus]);
-
-
-  // --- Game Loop (Regeneration) ---
+  // --- Game Loop ---
   const update = useCallback((time: number) => {
-    if (lastTimeRef.current !== undefined) {
-      const deltaTime = time - lastTimeRef.current;
-      
-      setGameState(prev => {
-        if (gameStatus !== GameStatus.PLAYING || prev.currentHp <= 0) return prev;
-        
-        const config = LEVEL_CONFIGS[prev.level - 1] || LEVEL_CONFIGS[0];
-        // Note: We removed the `timeSinceTap` check to make regen constant pressure (DPS check)
-        
-        if (prev.currentHp < prev.maxHp) {
-            const regenAmount = (prev.maxHp * config.regenRate * deltaTime) / 1000;
-            const newHp = Math.min(prev.maxHp, prev.currentHp + regenAmount);
-            return { ...prev, currentHp: newHp };
-        }
-        return prev;
-      });
+    // Check Pause Status directly
+    if (gameStatus !== GameStatus.PLAYING) {
+      lastTimeRef.current = 0; // Reset time ref when paused so we don't jump on resume
+      requestRef.current = requestAnimationFrame(update);
+      return;
     }
+
+    if (lastTimeRef.current === 0 || (time - lastTimeRef.current) > 1000) {
+        lastTimeRef.current = time;
+    }
+    const deltaTime = time - lastTimeRef.current;
     lastTimeRef.current = time;
+
+    const config = getCurrentWaveConfig();
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+
+    // 1. Spawning
+    if (enemiesSpawnedCountRef.current < config.totalEnemies) {
+      if (time - lastSpawnTimeRef.current > config.spawnInterval) {
+        spawnEnemy(config);
+        lastSpawnTimeRef.current = time;
+      }
+    }
+
+    // 3. Move Enemies
+    setEnemies(prev => prev.map(e => {
+       const dx = centerX - e.x;
+       const dy = centerY - e.y;
+       const dist = Math.sqrt(dx*dx + dy*dy);
+       
+       if (dist < 90) return e; // Reached center radius (increased collision radius)
+
+       const vx = (dx / dist) * e.speed * (deltaTime / 16);
+       const vy = (dy / dist) * e.speed * (deltaTime / 16);
+       
+       return { ...e, x: e.x + vx, y: e.y + vy };
+    }));
+
+    // 4. Move Projectiles & Collision
+    setProjectiles(currentProjectiles => {
+       const activeProjectiles: Projectile[] = [];
+       const hitEvents: {enemyId: number, damage: number, isCrit: boolean}[] = [];
+
+       currentProjectiles.forEach(p => {
+         let newX = p.x;
+         let newY = p.y;
+         let hitEnemyId: number | null = null;
+         
+         if (p.targetId !== undefined) {
+             // --- HOMING LOGIC ---
+             const target = enemies.find(e => e.id === p.targetId);
+             if (!target) {
+                // Target dead, fizzle out
+                return; 
+             }
+
+             const dx = target.x - p.x;
+             const dy = target.y - p.y;
+             const dist = Math.sqrt(dx*dx + dy*dy);
+
+             if (dist < 20) {
+               // HIT specific target
+               hitEnemyId = target.id;
+             } else {
+               // Move towards target
+               const vx = (dx / dist) * p.speed * (deltaTime / 16);
+               const vy = (dy / dist) * p.speed * (deltaTime / 16);
+               newX += vx;
+               newY += vy;
+             }
+         } else {
+             // --- RANDOM/LINEAR LOGIC ---
+             if (p.vx !== undefined && p.vy !== undefined) {
+                 newX += p.vx * (deltaTime / 16);
+                 newY += p.vy * (deltaTime / 16);
+                 
+                 // Remove if off-screen (with buffer)
+                 if (newX < -100 || newX > window.innerWidth + 100 || newY < -100 || newY > window.innerHeight + 100) {
+                     return;
+                 }
+
+                 // Check collision with ANY enemy
+                 // Simple circle collision check (radius ~20px for projectile, ~30px for enemy)
+                 const hit = enemies.find(e => {
+                     const dx = e.x - newX;
+                     const dy = e.y - newY;
+                     return (dx*dx + dy*dy) < 1600; // 40px combined radius squared
+                 });
+
+                 if (hit) {
+                     hitEnemyId = hit.id;
+                 }
+             }
+         }
+
+         if (hitEnemyId) {
+             hitEvents.push({ enemyId: hitEnemyId, damage: p.damage, isCrit: p.isCrit });
+         } else {
+             activeProjectiles.push({ ...p, x: newX, y: newY });
+         }
+       });
+
+       // Apply Damage
+       if (hitEvents.length > 0) {
+         // Trigger visual effects
+         hitEvents.forEach(h => {
+             const target = enemies.find(e => e.id === h.enemyId);
+             if (target) {
+                 spawnHitEffect(target.x, target.y, h.isCrit);
+             }
+         });
+
+         setEnemies(prev => {
+            return prev.map(e => {
+                const hits = hitEvents.filter(h => h.enemyId === e.id);
+                if (hits.length === 0) return e;
+
+                let totalDamage = 0;
+                hits.forEach(h => {
+                    totalDamage += h.damage;
+                    // Visual feedback - Simplified calls here, standardizing colors
+                    const color = h.isCrit ? "text-red-500" : "text-yellow-500";
+                    const text = h.isCrit ? `暴击 ${Math.floor(h.damage)}!` : `-${Math.floor(h.damage)}`;
+                    // Use scale for size differentiation: Normal=1, Crit=1.5
+                    spawnFloatingText(e.x, e.y - 20, text, color, h.isCrit ? 1.5 : 1);
+                });
+
+                // Knockback
+                const dx = e.x - centerX;
+                const dy = e.y - centerY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const kbX = (dx/dist) * playerStats.knockback;
+                const kbY = (dy/dist) * playerStats.knockback;
+
+                return { 
+                    ...e, 
+                    hp: e.hp - totalDamage, 
+                    x: e.x + kbX, 
+                    y: e.y + kbY,
+                    lastHitTime: Date.now() // Record hit time for flash effect
+                };
+            }).filter(e => {
+                if (e.hp <= 0) {
+                    // Enemy Dead
+                    playBreakSound();
+                    // Clean scale call for kill text
+                    spawnFloatingText(e.x, e.y, "破!", "text-gray-800", 2.2);
+                    setGameState(gs => ({ 
+                        ...gs, 
+                        enemiesKilledThisLevel: gs.enemiesKilledThisLevel + 1,
+                        score: gs.score + (e.isBoss ? 100 : 10)
+                    }));
+                    return false;
+                }
+                return true;
+            });
+         });
+       }
+
+       return activeProjectiles;
+    });
+
+    // 5. Check Player Damage (Enemy reached center)
+    setEnemies(prev => {
+        let hpLoss = 0;
+        const remaining = prev.filter(e => {
+            const dx = centerX - e.x;
+            const dy = centerY - e.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < 90) { // Touching fish radius
+                hpLoss += 1;
+                // Simplified call
+                spawnFloatingText(centerX, centerY - 80, "心乱!", "text-red-600", 2.5);
+                return false; // Remove enemy
+            }
+            return true;
+        });
+
+        if (hpLoss > 0) {
+            setGameState(gs => {
+                const newHp = Math.max(0, gs.currentHp - hpLoss);
+                if (newHp <= 0) {
+                    setGameStatus(GameStatus.GAME_OVER);
+                }
+                return { ...gs, currentHp: newHp };
+            });
+            setIsHit(true);
+            setTimeout(() => setIsHit(false), 100);
+        }
+        return remaining;
+    });
+
+    // 6. Check Win Condition
+    if (enemiesSpawnedCountRef.current >= config.totalEnemies && enemies.length === 0 && gameStatus === GameStatus.PLAYING) {
+        handleLevelComplete();
+    }
+
     requestRef.current = requestAnimationFrame(update);
-  }, [gameStatus]);
+  }, [enemies, gameStatus, gameState.level, playerStats]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(update);
     return () => cancelAnimationFrame(requestRef.current!);
   }, [update]);
 
-  // --- Pause Logic ---
-  const pauseGame = () => {
-    // Allow pausing in both PLAYING and IDLE states
-    if (gameStatus === GameStatus.PLAYING || gameStatus === GameStatus.IDLE) {
-      setGameStatus(GameStatus.PAUSED);
-      if (gameState.isPlaying) {
-        pauseStartTimeRef.current = Date.now();
-      }
-      if (comboTimeoutRef.current) window.clearTimeout(comboTimeoutRef.current);
-    }
-  };
+  // --- Actions ---
 
-  const resumeGame = () => {
-    if (gameStatus === GameStatus.PAUSED) {
-      if (gameState.isPlaying) {
-        // Resume playing
-        const now = Date.now();
-        const pauseDuration = now - pauseStartTimeRef.current;
-        
-        setGameState(prev => ({
-          ...prev,
-          levelStartTime: prev.levelStartTime ? prev.levelStartTime + pauseDuration : null,
-          lastTapTime: prev.lastTapTime + pauseDuration
-        }));
-        setGameStatus(GameStatus.PLAYING);
-      } else {
-        // Was IDLE, go back to IDLE
-        setGameStatus(GameStatus.IDLE);
-      }
-    }
-  };
-
-  // --- Navigation Logic ---
-  const prevLevel = () => {
-    setGameState(prev => {
-      const prevLevelIndex = Math.max(1, prev.level - 1);
-      const config = LEVEL_CONFIGS[prevLevelIndex - 1];
-      
-      setGameHistory(history => {
-          return history.filter(h => h.level < prevLevelIndex);
-      });
-
-      return {
-        level: prevLevelIndex,
-        maxHp: config.hp,
-        currentHp: config.hp,
-        combo: 0,
-        tapCount: 0,
-        isPlaying: false,
-        levelStartTime: null,
-        lastTapTime: 0,
-        maxComboThisLevel: 0,
-        damageDealtThisLevel: 0,
-      };
-    });
-    setGameStatus(GameStatus.IDLE);
-    setElapsedTime(0);
-    setShowLevelComplete(false); // Reset modal
-    if (comboTimeoutRef.current) window.clearTimeout(comboTimeoutRef.current);
-  };
-
-  const nextLevel = () => {
-    if (levelStats) {
-       setGameHistory(prev => {
-           // Avoid duplicates if nextLevel called multiple times
-           if (prev.find(p => p.level === levelStats.level)) return prev;
-           return [...prev, levelStats];
-       });
-    }
-
-    // Check if we have completed the final level (Level 5)
-    // If so, transition to Game Complete Modal instead of next level
-    if (gameState.level >= LEVEL_CONFIGS.length) {
-        setShowLevelComplete(false);
-        setShowGameComplete(true);
-        return;
-    }
-
-    setGameState(prev => {
-      const nextLevel = prev.level + 1;
-      const nextConfig = LEVEL_CONFIGS[nextLevel - 1] || LEVEL_CONFIGS[LEVEL_CONFIGS.length - 1];
-      
-      return {
-        level: nextLevel,
-        maxHp: nextConfig.hp,
-        currentHp: nextConfig.hp,
-        combo: 0,
-        tapCount: 0,
-        isPlaying: false,
-        levelStartTime: null,
-        lastTapTime: 0,
-        maxComboThisLevel: 0,
-        damageDealtThisLevel: 0,
-      };
-    });
-    setGameStatus(GameStatus.IDLE);
-    setLevelStats(null);
-    setElapsedTime(0);
-    setShowLevelComplete(false); // Reset modal
-    if (comboTimeoutRef.current) window.clearTimeout(comboTimeoutRef.current);
-  };
-
-  const retryLevel = () => {
-     setGameState(prev => {
-      const config = LEVEL_CONFIGS[prev.level - 1];
-      return {
-        level: prev.level,
-        maxHp: config.hp,
-        currentHp: config.hp,
-        combo: 0,
-        tapCount: 0,
-        isPlaying: false,
-        levelStartTime: null,
-        lastTapTime: 0,
-        maxComboThisLevel: 0,
-        damageDealtThisLevel: 0,
-      };
-    });
-    setGameStatus(GameStatus.IDLE);
-    setLevelStats(null);
-    setElapsedTime(0);
-    setShowLevelComplete(false); // Reset modal
-    if (comboTimeoutRef.current) window.clearTimeout(comboTimeoutRef.current);
-  };
-
-  const restartGame = () => {
+  const startGame = () => {
+    initAudio(); // Initialize audio context on first gesture
+    enemiesSpawnedCountRef.current = 0;
     setGameState({
       level: 1,
-      maxHp: LEVEL_CONFIGS[0].hp,
-      currentHp: LEVEL_CONFIGS[0].hp,
+      currentHp: BASE_HP,
+      maxHp: BASE_HP,
       combo: 0,
-      tapCount: 0,
-      isPlaying: false,
-      levelStartTime: null,
-      lastTapTime: 0,
-      maxComboThisLevel: 0,
-      damageDealtThisLevel: 0,
+      score: 0,
+      isPlaying: true,
+      isPaused: false,
+      levelStartTime: Date.now(),
+      enemiesKilledThisLevel: 0
     });
-    setGameStatus(GameStatus.IDLE);
-    setLevelStats(null);
-    setGameHistory([]);
-    setElapsedTime(0);
-    setShowGameComplete(false);
-    setShowLevelComplete(false); // Reset modal
-    if (comboTimeoutRef.current) window.clearTimeout(comboTimeoutRef.current);
+    setPlayerStats(INITIAL_PLAYER_STATS);
+    setEnemies([]);
+    setProjectiles([]);
+    setHitEffects([]);
+    setGameStatus(GameStatus.PLAYING);
+    setShowPauseModal(false);
   };
 
-  // --- Debug / Cheat Function ---
-  const debugInstantWin = () => {
-    if (gameStatus === GameStatus.VICTORY) return;
-    
-    setGameState(prev => {
-      const remainingHp = Math.max(0, prev.currentHp);
-      const tapsToAdd = 50; 
-      
-      return {
-        ...prev,
-        currentHp: 0, 
-        maxComboThisLevel: 999,
-        combo: 999,
-        tapCount: prev.tapCount + tapsToAdd,
-        damageDealtThisLevel: prev.damageDealtThisLevel + remainingHp,
-        levelStartTime: Date.now() - 500 
-      };
-    });
+  const handleLevelComplete = () => {
+    setGameHistory(prev => [...prev, {
+        level: gameState.level,
+        tapCount: 0, // Not tracking taps anymore, could track shots
+        maxCombo: 0,
+        timeTaken: (Date.now() - (gameState.levelStartTime || Date.now())) / 1000,
+        enemiesKilled: gameState.enemiesKilledThisLevel,
+        damageTaken: gameState.maxHp - gameState.currentHp
+    }]);
+    setGameStatus(GameStatus.UPGRADING);
   };
 
-  // --- Interactions ---
-  const handleTap = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (gameStatus === GameStatus.VICTORY || gameStatus === GameStatus.PAUSED) return;
-
-    const now = Date.now();
-    const config = getCurrentConfig();
-    playTapSound(config.material);
-    
-    if (comboTimeoutRef.current) {
-        window.clearTimeout(comboTimeoutRef.current);
-    }
-    
-    if (navigator.vibrate) {
-        navigator.vibrate(15); 
-    }
-    
-    setIsHit(true);
-    setTimeout(() => setIsHit(false), 80); 
-
-    let clientX = window.innerWidth / 2;
-    let clientY = window.innerHeight / 2;
-    if (e.clientX !== undefined && e.clientY !== undefined) {
-        clientX = e.clientX;
-        clientY = e.clientY;
-    }
-
-    spawnRipple(clientX, clientY);
-
-    setGameState(prev => {
-      if (prev.currentHp <= 0) return prev;
-
-      let newIsPlaying = prev.isPlaying;
-      let newLevelStartTime = prev.levelStartTime;
-      
-      if (!prev.isPlaying || gameStatus === GameStatus.IDLE) {
-        newIsPlaying = true;
-        newLevelStartTime = now;
+  const handleUpgradeSelect = (option: UpgradeOption) => {
+    setPlayerStats(prev => option.apply(prev));
+    // Next Level
+    if (gameState.level < WAVE_CONFIGS.length) {
+        setGameState(prev => ({
+            ...prev,
+            level: prev.level + 1,
+            enemiesKilledThisLevel: 0,
+            levelStartTime: Date.now()
+        }));
+        enemiesSpawnedCountRef.current = 0;
+        setEnemies([]);
+        setProjectiles([]);
         setGameStatus(GameStatus.PLAYING);
-      }
+    } else {
+        setGameStatus(GameStatus.VICTORY);
+    }
+  };
 
-      const timeDiff = now - prev.lastTapTime;
-      let newCombo = prev.combo;
-      
-      // Tighten timing window for maintaining combo
-      if (timeDiff < COMBO_TIMEOUT_MS) { 
-        newCombo += 1;
-      } else {
-        newCombo = 1;
-      }
+  const handleManualTap = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (gameStatus !== GameStatus.PLAYING) return;
+    
+    // Play sound and visual effect
+    playTapSound(getCurrentWaveConfig().material);
+    setIsHit(true);
+    setTimeout(() => setIsHit(false), 50);
 
-      // Dynamic Damage Calculation
-      const damage = config.baseDamage + (newCombo * config.comboMultiplier);
-      const newHp = prev.currentHp - damage;
+    const rect = e.currentTarget.getBoundingClientRect();
+    spawnRipple(e.clientX - rect.left, e.clientY - rect.top);
 
-      const newMaxCombo = Math.max(prev.maxComboThisLevel, newCombo);
-      
-      const spreadX = (Math.random() - 0.5) * 160; 
-      const spreadY = (Math.random() - 0.5) * 100 - 30; 
-      
-      spawnFloatingText(clientX + spreadX, clientY + spreadY, `烦恼值 -${Math.floor(damage)}`);
-
-      return {
-        ...prev,
-        currentHp: newHp,
-        combo: newCombo,
-        tapCount: prev.tapCount + 1,
-        maxComboThisLevel: newMaxCombo,
-        lastTapTime: now,
-        isPlaying: newIsPlaying,
-        levelStartTime: newLevelStartTime,
-        damageDealtThisLevel: prev.damageDealtThisLevel + damage,
-      };
+    // Manual Attack logic
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    let closestDist = Infinity;
+    let closestEnemy: Enemy | null = null;
+    
+    enemies.forEach(e => {
+        const dx = e.x - centerX;
+        const dy = e.y - centerY;
+        const dist = dx*dx + dy*dy;
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestEnemy = e;
+        }
     });
 
-    comboTimeoutRef.current = window.setTimeout(() => {
-        setGameState(prev => ({ ...prev, combo: 0 }));
-    }, COMBO_TIMEOUT_MS);
+    // Fire logic: Always fire, whether we have a target or not
+    // shootProjectile handles visibility checks internally to decide tracking vs random
+    shootProjectile(closestEnemy);
+    
+    // Multishot Logic
+    if (Math.random() < playerStats.multiShotChance && enemies.length > 1 && closestEnemy) {
+        const others = enemies.filter(en => en.id !== closestEnemy!.id);
+        if (others.length > 0) {
+            const secondTarget = others[Math.floor(Math.random() * others.length)];
+            shootProjectile(secondTarget, 'SPLIT');
+        }
+    }
+
+    // Manual Tap Shockwave (Optional small pushback for nearby enemies on tap)
+    setEnemies(prev => prev.map(en => {
+        const dx = en.x - centerX;
+        const dy = en.y - centerY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 250) { // Shockwave radius
+            const vx = (dx/dist) * 40;
+            const vy = (dy/dist) * 40;
+            return { ...en, x: en.x + vx, y: en.y + vy };
+        }
+        return en;
+    }));
   };
 
-  const materialNameMap: Record<MaterialType, string> = {
-    [MaterialType.WOOD]: "木质",
-    [MaterialType.COPPER]: "铜质",
-    [MaterialType.IRON]: "铁质",
-    [MaterialType.STEEL]: "钢质",
-    [MaterialType.DIAMOND]: "钻石"
+  const togglePause = () => {
+    if (gameStatus === GameStatus.PLAYING) {
+        setGameStatus(GameStatus.PAUSED);
+        setShowPauseModal(true);
+    } else if (gameStatus === GameStatus.PAUSED) {
+        setGameStatus(GameStatus.PLAYING);
+        setShowPauseModal(false);
+    }
   };
-
-  const currentConfig = getCurrentConfig();
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between p-4 overflow-hidden relative touch-none">
+    <div className="relative min-h-screen flex flex-col items-center justify-between p-4 overflow-hidden">
       
-      {/* HUD - Pause & Info */}
-      <div className="w-full max-w-md mt-4 flex justify-between items-start select-none z-10 relative">
-        {/* Pause Button (Left Top) */}
-        <button 
-           onClick={pauseGame}
-           className="absolute top-0 left-0 p-2 bg-white rounded-lg border-2 border-gray-300 hover:bg-gray-100 shadow-sm active:scale-95 transition-transform"
-           title="菜单 / 更多"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-        </button>
+      {/* Loading Overlay */}
+      {isLoading && <Loader />}
 
-        {/* Level Info (Centered relative to container layout usually, but here strict flex) */}
-        <div className="flex flex-col space-y-2 ml-14">
-          {/* Level Title */}
-          <span className="text-4xl font-bold tracking-wide">第 {gameState.level} 关</span>
+      {/* Background Decor */}
+      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-100 via-transparent to-transparent" />
+      
+      {/* --- HUD HEADER --- */}
+      <header className="fixed top-0 left-0 w-full p-4 z-50 flex flex-col pointer-events-none space-y-4">
           
-          <div className="flex flex-col items-start space-y-1">
-             {/* Material Badge */}
-             <span className="text-xl text-gray-800 font-bold px-3 py-1 bg-gray-200 rounded-lg border-2 border-gray-300 shadow-sm">
-                {materialNameMap[currentConfig.material]}
-             </span>
+          {/* Top Row: Level Info & Menu Buttons */}
+          <div className="flex justify-between items-start w-full">
              
-             {/* Worry (HP) Text */}
-             <div className="flex items-baseline space-x-2 mt-1">
-                 <span className="text-xl font-bold text-gray-600">烦恼值:</span>
-                 <span className="text-2xl font-black text-gray-800">
-                    {Math.max(0, Math.floor(gameState.currentHp))} <span className="text-lg text-gray-500 font-normal">/ {gameState.maxHp}</span>
-                 </span>
+             {/* Left: Level Info (Enlarged & Sketchy) - Compacted */}
+             <div className="pointer-events-auto bg-white border-2 border-black px-3 py-2 border-sketchy flex flex-col items-start transform -rotate-1 origin-top-left hover:scale-105 transition-transform max-w-[60%]">
+                 <div className="flex flex-row items-baseline gap-2">
+                     <span className="font-black text-2xl italic tracking-tighter text-black leading-none whitespace-nowrap">
+                        第{gameState.level}劫
+                     </span>
+                     <div className="w-0.5 h-4 bg-gray-300 rounded-full"></div>
+                     <span className="text-base font-bold text-gray-500 leading-none whitespace-nowrap">
+                        {getCurrentWaveConfig().difficultyText}
+                     </span>
+                 </div>
+             </div>
+
+             {/* Right: Menu Buttons (Enlarged & Sketchy) */}
+             <div className="flex gap-3 pointer-events-auto">
+                 <button 
+                    onClick={() => setShowLevelInfo(true)}
+                    className="bg-white border-2 border-black w-14 h-14 flex items-center justify-center border-sketchy-sm shadow-md hover:bg-gray-50 active:translate-y-1 active:shadow-none transition-all transform rotate-2"
+                 >
+                    <span className="text-2xl">📖</span>
+                 </button>
+                 <button 
+                    onClick={togglePause}
+                    className="bg-white border-2 border-black w-14 h-14 flex items-center justify-center border-sketchy-sm shadow-md hover:bg-gray-50 active:translate-y-1 active:shadow-none transition-all transform -rotate-2"
+                 >
+                    <span className="text-2xl">{gameStatus === GameStatus.PAUSED ? '▶️' : '⏸️'}</span>
+                 </button>
              </div>
           </div>
 
-          {/* Time Display */}
-          <span className="text-xl text-gray-700 font-bold font-mono">时间: {elapsedTime.toFixed(1)}s</span>
+          {/* Center: Progress Bar (Thicker & Sketchy) */}
+          <div className="w-full max-w-md mx-auto pointer-events-auto mt-[-10px]">
+             <div className="flex justify-between text-xs font-black uppercase text-gray-500 mb-1 px-1 tracking-widest">
+                <span>WAVE PROGRESS</span>
+                <span>{gameState.enemiesKilledThisLevel} / {getCurrentWaveConfig().totalEnemies}</span>
+             </div>
+             <div className="h-5 bg-white border-2 border-black rounded-full overflow-hidden relative shadow-sm border-sketchy-sm transform -rotate-1">
+                 <div 
+                    className="absolute top-0 left-0 h-full bg-red-500 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min(100, (gameState.enemiesKilledThisLevel / getCurrentWaveConfig().totalEnemies) * 100)}%` }}
+                 >
+                     {/* Pattern overlay for style */}
+                     <div className="w-full h-full opacity-20 bg-[linear-gradient(45deg,rgba(255,255,255,.3)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.3)_50%,rgba(255,255,255,.3)_75%,transparent_75%,transparent)] bg-[length:0.5rem_0.5rem]"></div>
+                 </div>
+             </div>
+          </div>
+      </header>
+
+      {/* --- HUD FOOTER (New Location for Stats/HP) --- */}
+      <div className="fixed bottom-0 left-0 w-full p-4 pb-6 z-40 pointer-events-none flex flex-col items-center justify-end">
           
-          {gameState.level >= 2 && (
-              <span className="text-sm text-red-600 font-bold animate-pulse border border-red-200 bg-red-50 px-2 py-0.5 rounded w-max">
-                  难度: {currentConfig.difficultyText}
-              </span>
-          )}
-        </div>
+          {/* Combined Stats & Hearts (Capsule) */}
+          <div className="pointer-events-auto bg-[#fffae0] border-2 border-black px-6 py-3 shadow-sm flex items-center gap-5 transform rotate-1 transition-transform hover:scale-105 border-sketchy-md">
+               {/* Attack */}
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">⚔️</span>
+                  <span className="font-black text-xl text-gray-900">{playerStats.attackDamage}</span>
+               </div>
+               
+               {/* Divider */}
+               <div className="w-0.5 h-6 bg-black/10 rounded-full"></div>
+               
+               {/* Speed */}
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">⚡</span>
+                  <span className="font-black text-xl text-gray-900">{playerStats.projectileSpeed.toFixed(1)}</span>
+               </div>
 
-        {/* Combo Counter */}
-        <div className="flex flex-col items-end pt-2">
-          <span className={`text-5xl font-black transition-all duration-100 ${gameState.combo > 1 ? 'scale-110 text-red-600 drop-shadow-md' : 'text-gray-300'}`}>
-            x{gameState.combo}
-          </span>
-          <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">连击</span>
-        </div>
+               {/* Divider */}
+               <div className="w-0.5 h-6 bg-black/10 rounded-full"></div>
+
+               {/* Hearts Display */}
+               <div className="flex items-center gap-1">
+                   {Array.from({length: gameState.maxHp}).map((_, i) => (
+                       <span 
+                         key={i} 
+                         className={`text-3xl leading-none transition-all duration-300 ${i < gameState.currentHp ? 'text-red-500 scale-100 filter drop-shadow-sm' : 'text-gray-300 scale-75 opacity-30 grayscale'}`}
+                         style={{ transform: `rotate(${heartRotations.current[i] || 0}deg)` }}
+                       >
+                          ♥
+                       </span>
+                   ))}
+               </div>
+          </div>
       </div>
 
-      {/* HP Bar - Thicker */}
-      <div className="w-full max-w-md h-8 border-4 border-black rounded-full mt-4 relative bg-white overflow-hidden select-none z-10 shadow-md">
-        <div 
-          className="h-full bg-red-500 transition-all duration-200 ease-out"
-          style={{ width: `${(Math.max(0, gameState.currentHp) / gameState.maxHp) * 100}%` }}
-        />
-      </div>
+      {/* Main Game Area */}
+      <main className="fixed inset-0 flex items-center justify-center overflow-hidden">
+        
+        {/* Enemies */}
+        {enemies.map(e => {
+            // Check if enemy was recently hit for flash effect
+            const isHitRecently = Date.now() - (e.lastHitTime || 0) < 150;
+            
+            return (
+            <div
+                key={e.id}
+                className="absolute flex flex-col items-center justify-center transition-transform will-change-transform"
+                style={{ 
+                    left: e.x, 
+                    top: e.y, 
+                    transform: `translate(-50%, -50%) ${isHitRecently ? 'scale(1.15)' : 'scale(1)'}`, // Pop scale on hit
+                    zIndex: e.isBoss ? 20 : 10
+                }}
+            >
+                {/* Enemy Paper Container - Enhanced */}
+                <div 
+                    className={`
+                       relative flex flex-col items-center justify-center
+                       border-2 border-black border-sketchy
+                       shadow-[3px_3px_0px_rgba(0,0,0,0.15)]
+                       transition-all duration-100 animate-float-slight
+                       ${e.isBoss 
+                          ? 'bg-yellow-100 px-6 py-3 min-w-[100px]' 
+                          : 'bg-white px-4 py-2 min-w-[80px]'
+                       }
+                       ${isHitRecently ? 'brightness-125 saturate-150 border-red-900' : ''} 
+                    `}
+                    style={{ '--base-rot': e.isBoss ? '-1deg' : '1deg' } as React.CSSProperties}
+                >
+                    <span 
+                        className={`font-black tracking-widest whitespace-nowrap font-hand leading-none
+                        ${e.isBoss ? 'text-2xl text-red-900 mb-2' : 'text-xl text-gray-900 mb-1.5'}`}
+                        style={{ textShadow: e.isBoss ? '1px 1px 0px rgba(200,0,0,0.1)' : 'none' }}
+                    >
+                        {e.text}
+                    </span>
+                    
+                    {/* Enemy HP Bar - Sketchy Style */}
+                    <div className="w-full h-2 bg-black/5 rounded-full overflow-hidden border border-black/20 relative">
+                        <div 
+                            className={`h-full transition-all duration-100 relative ${e.isBoss ? 'bg-red-600' : 'bg-gray-800'}`} 
+                            style={{width: `${(e.hp / e.maxHp) * 100}%`}}
+                        >
+                            {/* Texture overlay for the bar */}
+                            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 origin-bottom-left w-[120%]"></div>
+                        </div>
+                    </div>
+                    
+                    {/* Boss Stamp */}
+                    {e.isBoss && (
+                        <div className="absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full border-2 border-black flex items-center justify-center text-white text-[10px] font-bold shadow-sm transform rotate-12 z-20 border-sketchy-sm">
+                            魔
+                        </div>
+                    )}
+                </div>
+            </div>
+        )})}
 
-      {/* Center Game Area */}
-      <div className="flex-1 flex items-center justify-center w-full relative z-0">
-        <div className={gameStatus === GameStatus.VICTORY ? 'animate-shake' : ''}>
-           <WoodenFish 
-              hpPercentage={(gameState.currentHp / gameState.maxHp) * 100} 
-              onClick={handleTap}
-              isHit={isHit}
-              material={currentConfig.material}
-           />
-        </div>
+        {/* Projectiles */}
+        {projectiles.map(p => (
+            <div
+                key={p.id}
+                className="absolute z-30 flex items-center justify-center pointer-events-none"
+                style={{ 
+                    left: p.x, 
+                    top: p.y, 
+                    transform: 'translate(-50%, -50%)' 
+                }}
+            >
+               <div className="animate-[spin_1s_linear_infinite]">
+                   {p.type === 'NORMAL' ? (
+                       <div className="relative flex items-center justify-center w-14 h-14">
+                           {/* Golden Glow */}
+                           <div className="absolute inset-0 bg-yellow-300 rounded-full blur-md opacity-70 scale-110"></div>
+                           {/* Symbol */}
+                           <span className="relative text-yellow-600 font-black text-5xl drop-shadow-md leading-none" style={{ marginTop: '-4px' }}>卍</span>
+                       </div>
+                   ) : (
+                       <div className="relative flex items-center justify-center w-10 h-10">
+                           {/* Blue Glow */}
+                           <div className="absolute inset-0 bg-cyan-300 rounded-full blur-md opacity-70 scale-125"></div>
+                           <span className="relative text-cyan-600 font-black text-4xl drop-shadow-md leading-none">✨</span>
+                       </div>
+                   )}
+               </div>
+            </div>
+        ))}
+        
+        {/* Hit Effects - Explosion visuals */}
+        {hitEffects.map(h => (
+            <div
+                key={h.id}
+                className="absolute z-30 pointer-events-none animate-hit-pop"
+                style={{ left: h.x, top: h.y }}
+            >
+                <svg width="80" height="80" viewBox="0 0 100 100" className="overflow-visible">
+                    {h.isCrit ? (
+                        <path 
+                            d="M50 0 L65 35 L100 50 L65 65 L50 100 L35 65 L0 50 L35 35 Z" 
+                            fill="#ef4444" 
+                            stroke="black" 
+                            strokeWidth="3"
+                            className="drop-shadow-lg"
+                        />
+                    ) : (
+                        <path 
+                            d="M50 15 Q65 15 80 25 Q90 40 85 60 Q75 85 50 85 Q25 85 15 60 Q10 40 20 25 Q35 15 50 15 Z" 
+                            fill="#facc15" 
+                            stroke="black" 
+                            strokeWidth="3"
+                            className="drop-shadow-md"
+                        />
+                    )}
+                </svg>
+            </div>
+        ))}
 
-        {/* Floating Combat Text */}
+        {/* Floating Texts - Optimized for Pop Effect */}
         {floatingTexts.map(ft => (
           <div
             key={ft.id}
-            className="fixed pointer-events-none z-50" 
-            style={{
-              left: ft.x,
-              top: ft.y,
-              transform: `rotate(${ft.rotation}deg)`, 
-            }}
+            className={`absolute pointer-events-none select-none font-black animate-float-pop ${ft.color} z-40 whitespace-nowrap`}
+            style={{ 
+                left: ft.x, 
+                top: ft.y,
+                fontSize: '2.5rem', // Base size (approx text-4xl)
+                '--rot': `${ft.rotation}deg`,
+                '--scale': ft.scale || 1
+            } as React.CSSProperties}
           >
-            <div className="text-4xl font-black text-red-600 animate-float-up drop-shadow-md whitespace-nowrap">
-               {ft.text}
-            </div>
+            {ft.text}
           </div>
         ))}
 
-        {/* Ripples */}
-        {ripples.map(r => (
-            <div
-                key={r.id}
-                className="fixed pointer-events-none rounded-full border-4 border-gray-400 animate-ripple z-50"
-                style={{
-                    left: r.x,
-                    top: r.y,
-                    width: '20px', 
-                    height: '20px',
-                }}
+        {/* Turret (Wooden Fish) */}
+        <div className="relative z-30">
+            {/* Range Indicator (Subtle Sketchy) */}
+            <div className="absolute top-1/2 left-1/2 w-[600px] h-[600px] border-2 border-black/5 rounded-[45%] transform -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-spin-slow"></div>
+
+            <WoodenFish 
+              hpPercentage={(gameState.currentHp / gameState.maxHp) * 100} 
+              onClick={handleManualTap}
+              isHit={isHit}
+              material={getCurrentWaveConfig().material}
             />
-        ))}
+            
+            {/* Ripple Effects - Sketchy */}
+            {ripples.map(r => (
+                <div 
+                    key={r.id}
+                    className="absolute top-0 left-0 border-2 border-yellow-500 rounded-[35%_65%_45%_55%/45%_55%_35%_65%] pointer-events-none animate-ripple box-border z-0 bg-transparent"
+                    style={{ left: r.x, top: r.y }}
+                />
+            ))}
+        </div>
         
-        {/* Helper Text */}
-        {gameStatus === GameStatus.IDLE && gameState.level === 1 && (
-           <div className="absolute bottom-10 text-gray-400 animate-pulse text-2xl font-bold select-none">
-             点击开始消除烦恼
-           </div>
+        {/* Start Prompt */}
+        {!isLoading && gameStatus === GameStatus.IDLE && (
+            <div className="absolute top-[72%] flex flex-col items-center animate-bounce z-50 pointer-events-auto">
+                <button 
+                    onClick={startGame}
+                    className="bg-black text-white text-3xl font-black py-4 px-12 border-2 border-white shadow-lg border-sketchy-btn hover:scale-105 active:scale-95 transition-all transform -rotate-1"
+                >
+                    开始渡劫
+                </button>
+                <p className="mt-4 text-gray-600 font-bold bg-white/60 px-4 py-2 border border-black/10 border-sketchy-sm">点击木鱼发射金光，抵御心魔</p>
+            </div>
         )}
-      </div>
+      </main>
 
-      {/* Footer Stats */}
-      <div className="w-full max-w-md mb-8 grid grid-cols-2 gap-4 text-center text-gray-700 text-base font-bold select-none z-10">
-         <div className="border-2 border-black p-3 rounded-lg bg-white shadow-sm">
-            敲击数: {gameState.tapCount}
-         </div>
-         <div className="border-2 border-black p-3 rounded-lg bg-white shadow-sm">
-            最高连击: {gameState.maxComboThisLevel}
-         </div>
-      </div>
-
-      {/* Debug Instant Win Button */}
-      <button 
-        onClick={debugInstantWin}
-        className="fixed bottom-4 right-4 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-1 px-3 rounded shadow-lg opacity-50 hover:opacity-100 z-50 transition-opacity"
-        title="测试用：一键完美通关"
-      >
-        一键通关 (测试)
-      </button>
-
-      {/* Modals */}
-      {gameStatus === GameStatus.PAUSED && (
-         <PauseModal 
-            onResume={resumeGame}
-            onRestartLevel={retryLevel}
-            onPrevLevel={prevLevel}
-            showPrevLevel={gameState.level > 1}
-         />
+      {/* Modals with increased Z-Index */}
+      {gameStatus === GameStatus.UPGRADING && (
+          <UpgradeModal level={gameState.level} onSelect={handleUpgradeSelect} />
       )}
 
-      {showGameComplete ? (
-        <GameCompleteModal 
-           history={gameHistory}
-           onRestart={restartGame}
-        />
-      ) : (
-        gameStatus === GameStatus.VICTORY && levelStats && showLevelComplete && (
-          <LevelCompleteModal 
-              stats={levelStats} 
-              onNextLevel={nextLevel} 
-              onRetry={retryLevel}
+      {showLevelInfo && (
+          <LevelInfoModal onClose={() => setShowLevelInfo(false)} />
+      )}
+      
+      {showPauseModal && (
+          <PauseModal 
+            onResume={togglePause}
+            onRestartLevel={startGame}
+            onPrevLevel={() => {}} // Not implemented for TD
+            showPrevLevel={false}
+            onGiveUp={() => { setShowPauseModal(false); setGameStatus(GameStatus.GAME_OVER); }}
           />
-        )
+      )}
+
+      {gameStatus === GameStatus.VICTORY && (
+          <GameCompleteModal history={gameHistory} onRestart={() => setGameStatus(GameStatus.IDLE)} />
+      )}
+
+      {gameStatus === GameStatus.GAME_OVER && (
+          <LevelFailedModal 
+             level={gameState.level} 
+             onRetry={startGame} 
+             onExit={() => setGameStatus(GameStatus.IDLE)} 
+          />
       )}
     </div>
   );

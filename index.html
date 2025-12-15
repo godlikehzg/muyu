@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
@@ -5,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <base href="./" />
     <title>禅意木鱼</title>
-    <!-- Babel Standalone -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Fonts -->
@@ -15,9 +14,31 @@
       body {
         font-family: 'Patrick Hand', cursive; 
         background-color: #fdfbf7;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
         -webkit-tap-highlight-color: transparent;
         user-select: none;
       }
+      
+      /* Sketchy Borders Utilities */
+      .border-sketchy {
+        border-radius: 2% 4% 3% 5% / 95% 90% 92% 98%;
+        box-shadow: 2px 3px 0px 0px rgba(0,0,0,0.15);
+      }
+      .border-sketchy-md {
+        border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+      }
+      .border-sketchy-sm {
+        border-radius: 5px 20px 8px 15px / 10px 5px 15px 8px;
+      }
+      .border-sketchy-btn {
+        border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+        transition: all 0.2s ease;
+      }
+      .border-sketchy-btn:active {
+        border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px;
+        transform: scale(0.98);
+      }
+
       @keyframes shake {
         0% { transform: translate(1px, 1px) rotate(0deg); }
         10% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -32,16 +53,48 @@
         100% { transform: translate(1px, -2px) rotate(-1deg); }
       }
       .animate-shake { animation: shake 0.5s; }
-      @keyframes floatUp {
-        0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        100% { opacity: 0; transform: translate(-50%, -150px) scale(1.5); }
+
+      /* Updated Float Pop Animation */
+      @keyframes floatPop {
+        0% { 
+          opacity: 0; 
+          transform: translate(-50%, -50%) scale(0.5) rotate(var(--rot)); 
+        }
+        20% { 
+          opacity: 1; 
+          transform: translate(-50%, -100%) scale(calc(var(--scale) * 1.2)) rotate(var(--rot)); 
+        }
+        100% { 
+          opacity: 0; 
+          transform: translate(-50%, -200%) scale(var(--scale)) rotate(var(--rot)); 
+        }
       }
-      .animate-float-up { animation: floatUp 0.6s ease-out forwards; will-change: transform, opacity; }
+      .animate-float-pop { 
+        animation: floatPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+        will-change: transform, opacity;
+        /* Sticker Text Effect */
+        text-shadow: 
+           2px 2px 0px #000,
+           -1px -1px 0px rgba(255,255,255,0.8);
+      }
+      
+      /* Hit Effect Animation */
+      @keyframes hitPop {
+        0% { transform: translate(-50%, -50%) scale(0.4) rotate(0deg); opacity: 1; }
+        50% { transform: translate(-50%, -50%) scale(0.8) rotate(45deg); opacity: 0.9; }
+        100% { transform: translate(-50%, -50%) scale(0) rotate(90deg); opacity: 0; }
+      }
+      .animate-hit-pop { 
+        animation: hitPop 0.25s cubic-bezier(0, 0, 0.2, 1) forwards; 
+        pointer-events: none;
+      }
+
       @keyframes ripple {
-        0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.6; border-width: 10px; }
-        100% { transform: translate(-50%, -50%) scale(8); opacity: 0; border-width: 0px; }
+        0% { transform: translate(-50%, -50%) scale(0.5) rotate(0deg); opacity: 0.6; border-width: 8px; }
+        100% { transform: translate(-50%, -50%) scale(5) rotate(20deg); opacity: 0; border-width: 0px; }
       }
-      .animate-ripple { animation: ripple 0.5s cubic-bezier(0, 0, 0.2, 1) forwards; will-change: transform, opacity, border-width; }
+      .animate-ripple { animation: ripple 0.6s cubic-bezier(0, 0, 0.2, 1) forwards; will-change: transform, opacity, border-width; }
+      
       @keyframes shatterLeft {
         0% { transform: translate(0, 0) rotate(0); opacity: 1; }
         100% { transform: translate(-60px, 40px) rotate(-25deg); opacity: 0; }
@@ -57,20 +110,29 @@
       .animate-shatter-left { animation: shatterLeft 0.8s ease-out forwards; transform-origin: center center; }
       .animate-shatter-right { animation: shatterRight 0.8s ease-out forwards; transform-origin: center center; }
       .animate-crumble { animation: crumble 0.8s ease-out forwards; transform-origin: center center; }
+      
       @keyframes spin-slow {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
       .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+      
       @keyframes bounceIn {
-        0% { opacity: 0; transform: scale(0.3); }
-        50% { opacity: 1; transform: scale(1.05); }
-        70% { transform: scale(0.9); }
-        100% { transform: scale(1); }
+        0% { opacity: 0; transform: scale(0.8) rotate(-2deg); }
+        50% { opacity: 1; transform: scale(1.02) rotate(1deg); }
+        70% { transform: scale(0.98) rotate(-1deg); }
+        100% { transform: scale(1) rotate(0deg); }
       }
-      .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) both; }
+      .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+      
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+
+      @keyframes floatSlight {
+        0%, 100% { transform: rotate(var(--base-rot, 0deg)) translateY(0); }
+        50% { transform: rotate(var(--base-rot, 0deg)) translateY(-3px); }
+      }
+      .animate-float-slight { animation: floatSlight 3s ease-in-out infinite; }
       
       /* Hide scrollbar for Chrome, Safari and Opera */
       .scrollbar-hide::-webkit-scrollbar {
@@ -95,632 +157,6 @@
 </head>
   <body>
     <div id="root"></div>
-
-    <!-- MAIN APPLICATION SCRIPT -->
-    <script type="text/babel" data-presets="react,typescript" data-type="module">
-      import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.2.0';
-      import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
-      import html2canvas from 'https://esm.sh/html2canvas@1.4.1';
-
-      // --- TYPES ---
-      // Converted to const objects to avoid ReferenceError in Babel Standalone
-      const GameStatus = {
-        IDLE: 'IDLE',
-        PLAYING: 'PLAYING',
-        PAUSED: 'PAUSED',
-        VICTORY: 'VICTORY'
-      };
-      
-      const MaterialType = {
-        WOOD: 'WOOD',
-        COPPER: 'COPPER',
-        IRON: 'IRON',
-        STEEL: 'STEEL',
-        DIAMOND: 'DIAMOND'
-      };
-
-      // --- UTILS: AUDIO ---
-      let audioContext = null;
-      const getAudioContext = () => {
-        if (!audioContext) {
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        return audioContext;
-      };
-
-      const playTapSound = (material = MaterialType.WOOD) => {
-        try {
-          const ctx = getAudioContext();
-          if (ctx.state === 'suspended') ctx.resume();
-          const t = ctx.currentTime;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-
-          switch (material) {
-            case MaterialType.DIAMOND:
-              osc.type = 'sine';
-              osc.frequency.setValueAtTime(2000 + (Math.random() * 200 - 100), t);
-              gain.gain.setValueAtTime(0, t);
-              gain.gain.linearRampToValueAtTime(0.4, t + 0.001);
-              gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
-              break;
-            case MaterialType.COPPER:
-              osc.type = 'sine';
-              osc.frequency.setValueAtTime(850 + (Math.random() * 50 - 25), t);
-              gain.gain.setValueAtTime(0, t);
-              gain.gain.linearRampToValueAtTime(0.6, t + 0.01);
-              gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-              break;
-            case MaterialType.IRON:
-              osc.type = 'triangle';
-              osc.frequency.setValueAtTime(350 + (Math.random() * 30 - 15), t);
-              gain.gain.setValueAtTime(0, t);
-              gain.gain.linearRampToValueAtTime(0.7, t + 0.005);
-              gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-              break;
-            case MaterialType.STEEL:
-              osc.type = 'sine';
-              osc.frequency.setValueAtTime(1200 + (Math.random() * 100 - 50), t);
-              gain.gain.setValueAtTime(0, t);
-              gain.gain.linearRampToValueAtTime(0.5, t + 0.002);
-              gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-              break;
-            case MaterialType.WOOD:
-            default:
-              osc.type = 'sine';
-              const woodFreq = 600 + (Math.random() * 40 - 20);
-              osc.frequency.setValueAtTime(woodFreq, t);
-              osc.frequency.exponentialRampToValueAtTime(woodFreq * 0.9, t + 0.1);
-              gain.gain.setValueAtTime(0, t);
-              gain.gain.linearRampToValueAtTime(0.8, t + 0.005);
-              gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-              break;
-          }
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(t);
-          osc.stop(t + 0.8);
-        } catch (e) { console.error(e); }
-      };
-
-      const playBreakSound = () => {
-        try {
-          const ctx = getAudioContext();
-          if (ctx.state === 'suspended') ctx.resume();
-          const t = ctx.currentTime;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(150, t);
-          osc.frequency.exponentialRampToValueAtTime(20, t + 0.5);
-          gain.gain.setValueAtTime(0.5, t);
-          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(t);
-          osc.stop(t + 0.5);
-        } catch (e) {}
-      };
-
-      const playWinSound = () => {
-        try {
-          const ctx = getAudioContext();
-          if (ctx.state === 'suspended') ctx.resume();
-          const t = ctx.currentTime;
-          const masterGain = ctx.createGain();
-          masterGain.gain.setValueAtTime(0.2, t);
-          masterGain.connect(ctx.destination);
-          const frequencies = [523.25, 659.25, 783.99, 1046.50];
-          frequencies.forEach((freq, index) => {
-            const osc = ctx.createOscillator();
-            const noteGain = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, t + index * 0.12);
-            const startTime = t + index * 0.12;
-            noteGain.gain.setValueAtTime(0, startTime);
-            noteGain.gain.linearRampToValueAtTime(1, startTime + 0.05);
-            noteGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
-            osc.connect(noteGain);
-            noteGain.connect(masterGain);
-            osc.start(startTime);
-            osc.stop(startTime + 0.6);
-          });
-        } catch (e) {}
-      };
-
-      // --- COMPONENTS ---
-
-      // 1. WoodenFish
-      const WoodenFish = ({ hpPercentage, onClick, isHit, material }) => {
-        const damage = Math.max(0, Math.min(1, (100 - hpPercentage) / 100));
-        const scratchOpacity = Math.min(1, damage * 2.5); 
-        const crackMinorOpacity = Math.max(0, Math.min(1, (damage - 0.4) * 5));
-        const crackMajorOpacity = Math.max(0, Math.min(1, (damage - 0.7) * 5));
-        const holeOpacity = Math.max(0, Math.min(1, (damage - 0.9) * 10));
-        const isBroken = hpPercentage <= 0;
-
-        const getMaterialStyle = (type) => {
-          switch (type) {
-            case MaterialType.DIAMOND: return { fill: '#b9f2ff', stroke: '#0077b6', detail: '#90e0ef', textureColor: '#00b4d8', shatterFill: '#caf0f8', stickRod: '#023e8a', stickHead: '#b9f2ff', stickDetail: '#ffffff' };
-            case MaterialType.COPPER: return { fill: '#d98758', stroke: '#5c3a21', detail: '#8c5a3c', textureColor: '#5c3a21', shatterFill: '#c77d52', stickRod: '#5c3a21', stickHead: '#d98758', stickDetail: '#f0b490' };
-            case MaterialType.IRON: return { fill: '#7a7a7a', stroke: '#2b2b2b', detail: '#4a4a4a', textureColor: '#2b2b2b', shatterFill: '#6e6e6e', stickRod: '#2b2b2b', stickHead: '#7a7a7a', stickDetail: '#9e9e9e' };
-            case MaterialType.STEEL: return { fill: '#c0c0c0', stroke: '#404040', detail: '#808080', textureColor: '#404040', shatterFill: '#b0b0b0', stickRod: '#404040', stickHead: '#c0c0c0', stickDetail: '#ffffff' };
-            default: return { fill: '#e8d5b5', stroke: '#2d2d2a', detail: '#4a4036', textureColor: '#2d2d2a', shatterFill: '#d1c4b2', stickRod: '#5c4033', stickHead: '#d2b48c', stickDetail: '#e8d5b5' };
-          }
-        };
-        const style = getMaterialStyle(material);
-
-        return (
-          <div className="relative w-64 h-64 flex items-center justify-center cursor-pointer select-none" onPointerDown={onClick}>
-            <svg viewBox="0 0 200 200" className={`w-full h-full transition-transform origin-bottom ${isHit && !isBroken ? 'scale-x-110 scale-y-90 duration-50 ease-out' : 'scale-100 duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]'}`}
-                 style={{ filter: isBroken ? "none" : isHit ? "drop-shadow(1px 1px 0px rgba(0,0,0,0.3)) brightness(1.2) saturate(1.4)" : "drop-shadow(5px 5px 0px rgba(0,0,0,0.1))" }}>
-              {!isBroken && (
-                <g>
-                  <path d="M100 20 C 150 20, 180 60, 180 110 C 180 160, 140 190, 100 190 C 60 190, 20 160, 20 110 C 20 60, 50 20, 100 20 Z" fill={style.fill} stroke={style.stroke} strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" className="transition-colors duration-500" />
-                  <path d="M40 110 Q 60 140 100 140 Q 140 140 160 110" fill="none" stroke={style.textureColor} strokeWidth="4" strokeLinecap="round" opacity="0.2" />
-                  <path d="M30 110 Q 100 130 170 110" fill="none" stroke={style.stroke} strokeWidth="8" strokeLinecap="round" />
-                  <path d="M30 110 Q 100 130 170 110" fill="none" stroke={style.detail} strokeWidth="4" strokeLinecap="round" />
-                  <path d="M85 25 Q 100 5 115 25" fill="none" stroke={style.stroke} strokeWidth="6" strokeLinecap="round" />
-                  <g style={{ opacity: scratchOpacity }} className="transition-opacity duration-300">
-                     <path d="M60 50 L 70 60" stroke="#5e5e5e" strokeWidth="2" strokeLinecap="round" />
-                     <path d="M140 40 L 130 55" stroke="#5e5e5e" strokeWidth="2" strokeLinecap="round" />
-                  </g>
-                  <g style={{ opacity: crackMinorOpacity }} className="transition-opacity duration-300">
-                     <path d="M100 50 L 95 70 L 105 85" fill="none" stroke={style.stroke} strokeWidth="3" />
-                     <path d="M160 100 L 150 115" fill="none" stroke={style.stroke} strokeWidth="3" />
-                  </g>
-                  <g style={{ opacity: crackMajorOpacity }} className="transition-opacity duration-300">
-                     <path d="M105 85 L 100 120 L 75 135" fill="none" stroke={style.stroke} strokeWidth="3.5" />
-                     <path d="M150 70 L 130 90 L 140 105" fill="none" stroke={style.stroke} strokeWidth="3.5" />
-                  </g>
-                  <g style={{ opacity: holeOpacity }} className="transition-opacity duration-300">
-                     <path d="M175 90 Q 160 100 175 110" fill={style.stroke} stroke="none" />
-                     <path d="M90 100 Q 100 110 110 100 Q 100 90 90 100" fill={style.stroke} stroke="none" />
-                  </g>
-                </g>
-              )}
-              {isBroken && (
-                <g>
-                  <path className="animate-shatter-left" d="M100 20 C 50 20 20 60 20 110 C 20 160 60 190 90 190 L 80 120 L 100 80 Z" fill={style.shatterFill} stroke={style.stroke} strokeWidth="4" strokeLinejoin="round" />
-                  <path className="animate-shatter-left" d="M40 130 L 55 140" stroke={style.stroke} strokeWidth="2" />
-                  <path className="animate-shatter-right" d="M100 20 C 150 20 180 60 180 110 C 180 160 140 190 110 190 L 120 120 L 100 80 Z" fill={style.shatterFill} stroke={style.stroke} strokeWidth="4" strokeLinejoin="round" />
-                  <path className="animate-shatter-right" d="M160 100 L 150 115" stroke={style.stroke} strokeWidth="2" />
-                  <g className="animate-crumble">
-                      <circle cx="100" cy="100" r="5" fill={style.stroke} />
-                      <circle cx="110" cy="120" r="3" fill={style.stroke} />
-                      <path d="M95 150 L 105 160" stroke={style.stroke} strokeWidth="3" />
-                  </g>
-                </g>
-              )}
-            </svg>
-            <div className={`absolute top-[-90px] right-[-60px] w-44 h-44 pointer-events-none transition-transform ${isHit && !isBroken ? 'rotate-[-40deg] translate-y-[-10px] translate-x-[-30px] duration-50 ease-out' : 'rotate-[20deg] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]'}`} style={{ transformOrigin: '85% 85%' }}>
-                <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl filter">
-                   <line x1="85" y1="15" x2="25" y2="75" stroke={style.stickRod} strokeWidth="8" strokeLinecap="round" />
-                   <circle cx="25" cy="75" r="14" fill={style.stickHead} stroke={style.stickRod} strokeWidth="3" />
-                   <circle cx="22" cy="72" r="4" fill={style.stickDetail} opacity="0.6" /> 
-                </svg>
-            </div>
-          </div>
-        );
-      };
-
-      // 2. PauseModal
-      const PauseModal = ({ onResume, onRestartLevel, onPrevLevel, showPrevLevel }) => {
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-[#fdfbf7] border-4 border-gray-800 rounded-xl w-full max-w-sm p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.5)] animate-bounce-in text-center relative">
-              <div className="absolute top-2 left-2 w-4 h-4 border-t-4 border-l-4 border-gray-300"></div>
-              <div className="absolute bottom-2 right-2 w-4 h-4 border-b-4 border-r-4 border-gray-300"></div>
-              <h2 className="text-4xl font-black text-gray-800 mb-2 tracking-widest">暂停</h2>
-              <div className="w-16 h-1 bg-gray-800 mx-auto mb-6 rounded-full"></div>
-              <div className="space-y-4">
-                <button onClick={onResume} className="w-full bg-yellow-500 hover:bg-yellow-400 text-white text-lg font-bold py-3 rounded-lg border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center space-x-2"><span>继续修行</span></button>
-                <button onClick={onRestartLevel} className="w-full bg-white text-gray-800 font-bold py-3 rounded-lg border-2 border-gray-800 hover:bg-gray-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] active:scale-95 transition-all flex items-center justify-center space-x-2"><span>重玩本关</span></button>
-                {showPrevLevel && (
-                  <button onClick={onPrevLevel} className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-lg border-2 border-gray-300 hover:bg-gray-200 shadow-sm active:scale-95 transition-all flex items-center justify-center space-x-2"><span>返回上一关</span></button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      };
-
-      // 3. LevelCompleteModal
-      const LevelCompleteModal = ({ stats, onNextLevel, onRetry }) => {
-        const { rank, levelTitle } = useMemo(() => {
-          const time = stats.timeTaken || 1; 
-          const cps = stats.tapCount / time; 
-          const titles = ['尘缘未了', '渐入佳境', '烦恼皆空', '六根清净', '大彻大悟'];
-          const titleIndex = Math.min(Math.max(0, stats.level - 1), titles.length - 1);
-          let score = 0;
-          if (cps > 10) score += 5; else if (cps > 8) score += 4; else if (cps > 6) score += 3; else if (cps > 4) score += 1;   
-          if (stats.maxCombo > 80) score += 5; else if (stats.maxCombo > 50) score += 4; else if (stats.maxCombo > 30) score += 2; else if (stats.maxCombo > 15) score += 1; 
-          let r = 'C';
-          if (score >= 9) r = 'SSS'; else if (score >= 7) r = 'SS'; else if (score >= 6) r = 'S'; else if (score >= 4) r = 'A'; else if (score >= 2) r = 'B';
-          return { rank: r, levelTitle: titles[titleIndex] };
-        }, [stats]);
-
-        return (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-[#fdfbf7] border-4 border-black rounded-lg w-full max-w-sm shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] animate-bounce-in relative overflow-hidden text-gray-800">
-              <div className="p-8 text-center border-b-4 border-black border-dashed bg-gray-50 flex flex-col items-center justify-center relative">
-                <h2 className="text-3xl font-black tracking-widest text-gray-900">第 {stats.level} 关 · {levelTitle}</h2>
-                <div className="absolute right-4 transform rotate-12 border-4 border-red-600 rounded-full w-16 h-16 flex items-center justify-center opacity-90 animate-pulse bg-white shadow-lg">
-                    <span className="text-3xl font-black text-red-600 leading-none pt-1">{rank}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 p-6 bg-[#f4f1ea]">
-                <div className="flex flex-col items-center p-2 bg-white border-2 border-black rounded shadow">
-                  <span className="text-xs text-gray-500 font-bold mb-1">耗时</span>
-                  <span className="text-xl font-bold text-black">{typeof stats.timeTaken === 'number' ? stats.timeTaken.toFixed(1) : '0.0'}s</span>
-                </div>
-                <div className="flex flex-col items-center p-2 bg-white border-2 border-black rounded shadow">
-                  <span className="text-xs text-gray-500 font-bold mb-1">击碎次数</span>
-                  <span className="text-xl font-bold text-black">{stats.tapCount ?? 0}</span>
-                </div>
-                <div className="col-span-2 flex flex-col items-center p-2 bg-white border-2 border-black rounded shadow">
-                  <span className="text-xs text-gray-500 font-bold mb-1">最高暴击连击</span>
-                  <span className="text-3xl font-black text-red-600">{stats.maxCombo ?? 0}</span>
-                </div>
-              </div>
-              <div className="p-6 pt-4 flex space-x-3 bg-[#fdfbf7]">
-                <button onClick={onRetry} className="flex-1 bg-white text-black text-lg font-bold py-3 rounded-lg border-2 border-black hover:bg-gray-100 transition-all active:scale-95 shadow">再试一次</button>
-                <button onClick={onNextLevel} className="flex-[2] bg-black text-white text-lg font-bold py-3 rounded-lg hover:bg-gray-800 transition-all active:scale-95 shadow flex items-center justify-center space-x-2"><span>继续修行</span></button>
-              </div>
-            </div>
-          </div>
-        );
-      };
-
-      // 4. GameCompleteModal
-      const GameCompleteModal = ({ history, onRestart }) => {
-        const [showDetails, setShowDetails] = useState(false);
-        const [shareImage, setShareImage] = useState(null);
-        const [isGenerating, setIsGenerating] = useState(false);
-        const cardRef = useRef(null);
-
-        const totalTime = history.reduce((acc, curr) => acc + curr.timeTaken, 0);
-        const totalTaps = history.reduce((acc, curr) => acc + curr.tapCount, 0);
-        const totalDamage = history.reduce((acc, curr) => acc + (curr.totalDamage || 0), 0);
-        const maxComboOverall = Math.max(...history.map(h => h.maxCombo), 0);
-        const avgCPS = totalTime > 0 ? totalTaps / totalTime : 0;
-
-        let title = "初入佛门";
-        let desc = "修行之路才刚刚开始";
-        if (avgCPS > 9 && maxComboOverall > 100) { title = "斗战胜佛"; desc = "天上地下，唯我独尊！烦恼已灰飞烟灭！"; }
-        else if (avgCPS > 7 && maxComboOverall > 60) { title = "功德无量"; desc = "你的功德金光照亮了整个宇宙。"; }
-        else if (avgCPS > 5) { title = "大彻大悟"; desc = "内心澄澈，再无一丝杂念。"; }
-        else { title = "心如止水"; desc = "平平淡淡才是真。"; }
-
-        const handleShare = async () => {
-          if (!cardRef.current) return;
-          setIsGenerating(true);
-          try {
-              await new Promise(resolve => setTimeout(resolve, 100));
-              const canvas = await html2canvas(cardRef.current, {
-                  useCORS: true, 
-                  scale: 2, 
-                  backgroundColor: '#fff7ed', // Set explicit background color to prevent gray transparency artifacts
-                  onclone: (clonedDoc) => {
-                      const clonedCard = clonedDoc.getElementById('game-complete-card');
-                      if (clonedCard) {
-                          clonedCard.style.maxHeight = 'none';
-                          clonedCard.style.overflow = 'visible';
-                          clonedCard.style.height = 'auto';
-                          clonedCard.style.paddingBottom = '60px';
-                          // Remove shadows/animations to prevent gray mask artifacts
-                          clonedCard.style.boxShadow = 'none';
-                          clonedCard.style.animation = 'none';
-                          clonedCard.classList.remove('animate-bounce-in');
-                          clonedCard.classList.remove('shadow-[0_0_50px_rgba(234,179,8,0.5)]');
-                      }
-                      const originalTitle = clonedDoc.querySelector('.original-title');
-                      if (originalTitle) originalTitle.style.display = 'none';
-                      
-                      const snapshotTitle = clonedDoc.querySelector('.snapshot-title');
-                      if (snapshotTitle) {
-                          snapshotTitle.style.display = 'flex';
-                          snapshotTitle.classList.remove('hidden');
-                          
-                          // Reset transform
-                          snapshotTitle.style.transform = 'none';
-
-                          const h1 = snapshotTitle.querySelector('h1');
-                          if (h1) {
-                               h1.style.transform = 'none';
-                               h1.style.backgroundImage = 'none';
-                               h1.style.color = '#ffffff'; 
-                               h1.style.backgroundColor = '#dc2626'; 
-                          }
-                      }
-                      const watermark = clonedDoc.querySelector('.show-in-capture');
-                      if (watermark) {
-                          watermark.style.opacity = '1';
-                          watermark.style.position = 'absolute';
-                          watermark.style.bottom = '20px';
-                          watermark.style.width = '100%';
-                          watermark.style.textAlign = 'center';
-                      }
-                  }
-              });
-              setShareImage(canvas.toDataURL("image/png"));
-          } catch (err) { alert("生成图片失败"); } 
-          finally { setIsGenerating(false); }
-        };
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-md"></div>
-            <div className="absolute inset-0 overflow-hidden flex items-center justify-center pointer-events-none opacity-30"><div className="w-[200vw] h-[200vw] bg-[conic-gradient(from_0deg,transparent_0deg,white_20deg,transparent_40deg,white_60deg,transparent_80deg,white_100deg,transparent_120deg,white_140deg,transparent_160deg,white_180deg,transparent_200deg,white_220deg,transparent_240deg,white_260deg,transparent_280deg,white_300deg,transparent_320deg,white_340deg,transparent_360deg)] animate-spin-slow"></div></div>
-            <div id="game-complete-card" ref={cardRef} className="relative bg-gradient-to-br from-yellow-50 to-orange-100 border-4 border-yellow-600 rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(234,179,8,0.5)] flex flex-col max-h-[90vh] animate-bounce-in overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-300 z-20"></div>
-              <div className="overflow-y-auto p-8 flex flex-col items-center text-center w-full relative z-10 scrollbar-hide">
-                  <div className="mb-6 relative w-full flex flex-col items-center">
-                      <div className="text-yellow-800 text-sm font-bold tracking-[0.5em] mb-4 uppercase">FINAL CLEAR</div>
-                      
-                      {/* Original Title (Web) */}
-                      <div className="original-title mb-2">
-                          <h1 className="text-5xl font-black text-white bg-gradient-to-r from-red-600 via-orange-500 to-red-600 px-10 py-4 rounded-full shadow-lg inline-flex items-center justify-center transform -rotate-2 border-4 border-yellow-300 leading-none tracking-widest min-w-[260px] whitespace-nowrap">{title}</h1>
-                      </div>
-                      
-                      {/* Snapshot Title (Generated Image) */}
-                      {/* Using asymmetric padding (pt-5 pb-6) to fix vertical centering offset in html2canvas */}
-                      <div className="snapshot-title hidden mb-2 w-full flex justify-center">
-                          <h1 className="text-5xl font-black text-white bg-red-600 px-12 pt-5 pb-6 rounded-full border-4 border-yellow-300 flex items-center justify-center mx-auto tracking-widest min-w-[260px] whitespace-nowrap leading-none">{title}</h1>
-                      </div>
-                      
-                      <div className="mt-4 text-yellow-800 font-bold text-lg px-4">{desc}</div>
-                  </div>
-                  <div className="w-full grid grid-cols-2 gap-3 mb-6">
-                      <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm"><div className="text-xs text-gray-600 font-bold mb-1">总耗时</div><div className="text-2xl font-black text-gray-900">{totalTime.toFixed(1)}s</div></div>
-                      <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm"><div className="text-xs text-gray-600 font-bold mb-1">总敲击数</div><div className="text-2xl font-black text-gray-900">{totalTaps}</div></div>
-                      <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm"><div className="text-xs text-gray-600 font-bold mb-1">消除烦恼</div><div className="text-2xl font-black text-gray-900">{totalDamage.toLocaleString()}</div></div>
-                      <div className="bg-white/80 p-3 rounded-xl border-2 border-yellow-200 shadow-sm"><div className="text-xs text-gray-600 font-bold mb-1">最高连击</div><div className="text-2xl font-black text-red-600">{maxComboOverall}</div></div>
-                  </div>
-                  <div className="w-full mb-6">
-                      <button onClick={() => setShowDetails(!showDetails)} className="text-yellow-700 text-sm font-bold underline hover:text-yellow-900 mb-2" data-html2canvas-ignore>{showDetails ? "收起每关详情" : "查看每关详情"}</button>
-                      {showDetails && (
-                          <div className="w-full bg-white rounded-lg p-2 text-xs md:text-sm border border-yellow-200 animate-fade-in shadow-inner overflow-x-auto">
-                              <table className="w-full text-left min-w-[300px] text-gray-900">
-                                  <thead><tr className="border-b-2 border-yellow-300 text-yellow-900"><th className="py-2 pl-2">关卡</th><th className="py-2 text-center">耗时</th><th className="py-2 text-center">敲击</th><th className="py-2 text-center">连击</th><th className="py-2 pr-2 text-right">烦恼值</th></tr></thead>
-                                  <tbody>{history.map((h) => (<tr key={h.level} className="border-b border-yellow-100 last:border-0 hover:bg-yellow-50 text-gray-900"><td className="py-2 pl-2 font-bold">第{h.level}关</td><td className="py-2 text-center font-bold">{h.timeTaken.toFixed(1)}s</td><td className="py-2 text-center font-bold">{h.tapCount}</td><td className="py-2 text-center text-red-600 font-bold">{h.maxCombo}</td><td className="py-2 pr-2 text-right font-bold text-gray-800">{h.totalDamage.toLocaleString()}</td></tr>))}</tbody>
-                              </table>
-                          </div>
-                      )}
-                  </div>
-                  <div className="w-full space-y-3 mt-auto">
-                      <button onClick={handleShare} disabled={isGenerating} className="w-full bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-4 rounded-xl shadow-lg border-b-4 border-yellow-700" data-html2canvas-ignore><span className="text-lg">{isGenerating ? '生成中...' : '✨ 炫耀一下 (生成海报)'}</span></button>
-                      <button onClick={onRestart} className="w-full bg-white border-2 border-yellow-600 text-yellow-800 font-bold py-3 rounded-xl hover:bg-yellow-50" data-html2canvas-ignore>重新修行</button>
-                  </div>
-                  <div className="mt-8 text-sm text-yellow-700 font-bold opacity-0 show-in-capture" style={{opacity: 0}}>禅意木鱼 · 消除烦恼</div>
-              </div>
-              <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-300 z-20"></div>
-            </div>
-            {shareImage && (
-              <div className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-6 animate-fade-in backdrop-blur-sm">
-                   <div className="text-white text-lg font-bold mb-4 animate-bounce">长按下方图片保存或发送给朋友</div>
-                   <img src={shareImage} alt="Achievement" className="w-full max-w-sm rounded-xl shadow-2xl border-4 border-yellow-500/50 max-h-[80vh] object-contain" />
-                   <button onClick={() => setShareImage(null)} className="mt-8 bg-white/10 hover:bg-white/20 text-white rounded-full p-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-              </div>
-            )}
-          </div>
-        );
-      };
-
-      // 5. App
-      const LEVEL_CONFIGS = [
-        { hp: 1314, regenRate: 0, baseDamage: 5, comboMultiplier: 1, material: MaterialType.WOOD, difficultyText: '入门' },
-        { hp: 52000, regenRate: 0.115, baseDamage: 1, comboMultiplier: 6, material: MaterialType.COPPER, difficultyText: '困难' },
-        { hp: 520000, regenRate: 0.17, baseDamage: 1, comboMultiplier: 25, material: MaterialType.IRON, difficultyText: '极难' },
-        { hp: 1314000, regenRate: 0.25, baseDamage: 1, comboMultiplier: 60, material: MaterialType.STEEL, difficultyText: '地狱' },
-        { hp: 3314000, regenRate: 0.35, baseDamage: 1, comboMultiplier: 120, material: MaterialType.DIAMOND, difficultyText: '非人' }
-      ];
-      const REGEN_DELAY_MS = 1000;
-      const COMBO_TIMEOUT_MS = 250;
-
-      const App = () => {
-        const [gameState, setGameState] = useState({ level: 1, currentHp: LEVEL_CONFIGS[0].hp, maxHp: LEVEL_CONFIGS[0].hp, combo: 0, tapCount: 0, isPlaying: false, levelStartTime: null, lastTapTime: 0, maxComboThisLevel: 0, damageDealtThisLevel: 0 });
-        const [gameStatus, setGameStatus] = useState(GameStatus.IDLE);
-        const [gameHistory, setGameHistory] = useState([]);
-        const [isHit, setIsHit] = useState(false);
-        const [floatingTexts, setFloatingTexts] = useState([]);
-        const [ripples, setRipples] = useState([]);
-        const [levelStats, setLevelStats] = useState(null);
-        const [elapsedTime, setElapsedTime] = useState(0);
-        const [showGameComplete, setShowGameComplete] = useState(false);
-        const [showLevelComplete, setShowLevelComplete] = useState(false);
-        
-        const requestRef = useRef();
-        const lastTimeRef = useRef();
-        const comboTimeoutRef = useRef();
-        const pauseStartTimeRef = useRef(0);
-
-        const getCurrentConfig = () => LEVEL_CONFIGS[gameState.level - 1] || LEVEL_CONFIGS[LEVEL_CONFIGS.length - 1];
-
-        const spawnFloatingText = (x, y, text) => {
-          const id = Date.now() + Math.random();
-          const rotation = (Math.random() - 0.5) * 40;
-          setFloatingTexts(prev => [...prev, { id, x, y, text, opacity: 1, rotation }]);
-          setTimeout(() => setFloatingTexts(prev => prev.filter(ft => ft.id !== id)), 800);
-        };
-        const spawnRipple = (x, y) => {
-          const id = Date.now() + Math.random();
-          setRipples(prev => [...prev, { id, x, y }]);
-          setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 500);
-        };
-
-        useEffect(() => {
-          let interval;
-          if (gameStatus === GameStatus.PLAYING && gameState.levelStartTime) {
-            interval = setInterval(() => setElapsedTime((Date.now() - gameState.levelStartTime) / 1000), 100);
-          }
-          return () => clearInterval(interval);
-        }, [gameStatus, gameState.levelStartTime]);
-
-        useEffect(() => {
-          if (gameState.currentHp <= 0 && gameStatus !== GameStatus.VICTORY) {
-            if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-            playBreakSound();
-            setTimeout(() => playWinSound(), 600);
-            setGameStatus(GameStatus.VICTORY);
-            const now = Date.now();
-            const startTime = gameState.levelStartTime || now;
-            const timeTaken = Math.max(0.1, (now - startTime) / 1000);
-            const currentStats = { level: gameState.level, tapCount: gameState.tapCount, maxCombo: gameState.maxComboThisLevel, timeTaken, totalDamage: gameState.damageDealtThisLevel, damageHistory: [] };
-            setLevelStats(currentStats);
-            setTimeout(() => setShowLevelComplete(true), 1200);
-            setGameState(prev => ({ ...prev, isPlaying: false }));
-          }
-        }, [gameState.currentHp, gameState.levelStartTime, gameState.level, gameState.tapCount, gameState.maxComboThisLevel, gameState.damageDealtThisLevel, gameStatus]);
-
-        const update = useCallback((time) => {
-          if (lastTimeRef.current !== undefined) {
-            const deltaTime = time - lastTimeRef.current;
-            setGameState(prev => {
-              if (gameStatus !== GameStatus.PLAYING || prev.currentHp <= 0) return prev;
-              const config = LEVEL_CONFIGS[prev.level - 1] || LEVEL_CONFIGS[0];
-              const timeSinceTap = Date.now() - prev.lastTapTime;
-              if (timeSinceTap > REGEN_DELAY_MS && prev.currentHp < prev.maxHp) {
-                  const regenAmount = (prev.maxHp * config.regenRate * deltaTime) / 1000;
-                  return { ...prev, currentHp: Math.min(prev.maxHp, prev.currentHp + regenAmount) };
-              }
-              return prev;
-            });
-          }
-          lastTimeRef.current = time;
-          requestRef.current = requestAnimationFrame(update);
-        }, [gameStatus]);
-
-        useEffect(() => {
-          requestRef.current = requestAnimationFrame(update);
-          return () => cancelAnimationFrame(requestRef.current);
-        }, [update]);
-
-        const pauseGame = () => {
-          if (gameStatus === GameStatus.PLAYING || gameStatus === GameStatus.IDLE) {
-            setGameStatus(GameStatus.PAUSED);
-            if (gameState.isPlaying) pauseStartTimeRef.current = Date.now();
-            if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-          }
-        };
-        const resumeGame = () => {
-          if (gameStatus === GameStatus.PAUSED) {
-            if (gameState.isPlaying) {
-              const now = Date.now();
-              const pauseDuration = now - pauseStartTimeRef.current;
-              setGameState(prev => ({ ...prev, levelStartTime: prev.levelStartTime ? prev.levelStartTime + pauseDuration : null, lastTapTime: prev.lastTapTime + pauseDuration }));
-              setGameStatus(GameStatus.PLAYING);
-            } else { setGameStatus(GameStatus.IDLE); }
-          }
-        };
-        const prevLevel = () => {
-          setGameState(prev => {
-            const prevLevelIndex = Math.max(1, prev.level - 1);
-            const config = LEVEL_CONFIGS[prevLevelIndex - 1];
-            setGameHistory(history => history.filter(h => h.level < prevLevelIndex));
-            return { level: prevLevelIndex, maxHp: config.hp, currentHp: config.hp, combo: 0, tapCount: 0, isPlaying: false, levelStartTime: null, lastTapTime: 0, maxComboThisLevel: 0, damageDealtThisLevel: 0 };
-          });
-          setGameStatus(GameStatus.IDLE); setElapsedTime(0); setShowLevelComplete(false);
-          if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-        };
-        const nextLevel = () => {
-          if (levelStats) {
-             setGameHistory(prev => prev.find(p => p.level === levelStats.level) ? prev : [...prev, levelStats]);
-          }
-          if (gameState.level >= LEVEL_CONFIGS.length) { setShowLevelComplete(false); setShowGameComplete(true); return; }
-          setGameState(prev => {
-            const nextLevel = prev.level + 1;
-            const nextConfig = LEVEL_CONFIGS[nextLevel - 1] || LEVEL_CONFIGS[LEVEL_CONFIGS.length - 1];
-            return { level: nextLevel, maxHp: nextConfig.hp, currentHp: nextConfig.hp, combo: 0, tapCount: 0, isPlaying: false, levelStartTime: null, lastTapTime: 0, maxComboThisLevel: 0, damageDealtThisLevel: 0 };
-          });
-          setGameStatus(GameStatus.IDLE); setLevelStats(null); setElapsedTime(0); setShowLevelComplete(false);
-          if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-        };
-        const retryLevel = () => {
-           setGameState(prev => {
-            const config = LEVEL_CONFIGS[prev.level - 1];
-            return { level: prev.level, maxHp: config.hp, currentHp: config.hp, combo: 0, tapCount: 0, isPlaying: false, levelStartTime: null, lastTapTime: 0, maxComboThisLevel: 0, damageDealtThisLevel: 0 };
-          });
-          setGameStatus(GameStatus.IDLE); setLevelStats(null); setElapsedTime(0); setShowLevelComplete(false);
-          if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-        };
-        const restartGame = () => {
-          setGameState({ level: 1, maxHp: LEVEL_CONFIGS[0].hp, currentHp: LEVEL_CONFIGS[0].hp, combo: 0, tapCount: 0, isPlaying: false, levelStartTime: null, lastTapTime: 0, maxComboThisLevel: 0, damageDealtThisLevel: 0 });
-          setGameStatus(GameStatus.IDLE); setLevelStats(null); setGameHistory([]); setElapsedTime(0); setShowGameComplete(false); setShowLevelComplete(false);
-          if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-        };
-        const debugInstantWin = () => {
-          if (gameStatus === GameStatus.VICTORY) return;
-          setGameState(prev => ({ ...prev, currentHp: 0, maxComboThisLevel: 999, combo: 999, tapCount: prev.tapCount + 50, damageDealtThisLevel: prev.damageDealtThisLevel + Math.max(0, prev.currentHp), levelStartTime: Date.now() - 500 }));
-        };
-
-        const handleTap = (e) => {
-          if (gameStatus === GameStatus.VICTORY || gameStatus === GameStatus.PAUSED) return;
-          const now = Date.now();
-          const config = getCurrentConfig();
-          playTapSound(config.material);
-          if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-          if (navigator.vibrate) navigator.vibrate(15);
-          setIsHit(true); setTimeout(() => setIsHit(false), 80);
-          let clientX = window.innerWidth / 2; let clientY = window.innerHeight / 2;
-          if (e.clientX !== undefined) { clientX = e.clientX; clientY = e.clientY; }
-          spawnRipple(clientX, clientY);
-          setGameState(prev => {
-            if (prev.currentHp <= 0) return prev;
-            let newIsPlaying = prev.isPlaying; let newLevelStartTime = prev.levelStartTime;
-            if (!prev.isPlaying || gameStatus === GameStatus.IDLE) { newIsPlaying = true; newLevelStartTime = now; setGameStatus(GameStatus.PLAYING); }
-            const timeDiff = now - prev.lastTapTime;
-            let newCombo = prev.combo;
-            if (timeDiff < COMBO_TIMEOUT_MS) newCombo += 1; else newCombo = 1;
-            const damage = config.baseDamage + (newCombo * config.comboMultiplier);
-            spawnFloatingText(clientX + (Math.random()-0.5)*160, clientY + (Math.random()-0.5)*100-30, `烦恼值 -${Math.floor(damage)}`);
-            return { ...prev, currentHp: prev.currentHp - damage, combo: newCombo, tapCount: prev.tapCount + 1, maxComboThisLevel: Math.max(prev.maxComboThisLevel, newCombo), lastTapTime: now, isPlaying: newIsPlaying, levelStartTime: newLevelStartTime, damageDealtThisLevel: prev.damageDealtThisLevel + damage };
-          });
-          comboTimeoutRef.current = setTimeout(() => setGameState(prev => ({ ...prev, combo: 0 })), COMBO_TIMEOUT_MS);
-        };
-        const materialNameMap = { WOOD: "木质", COPPER: "铜质", IRON: "铁质", STEEL: "钢质", DIAMOND: "钻石" };
-        const currentConfig = getCurrentConfig();
-
-        return (
-          <div className="min-h-screen flex flex-col items-center justify-between p-4 overflow-hidden relative touch-none">
-            <div className="w-full max-w-md mt-4 flex justify-between items-start select-none z-10 relative">
-              <button onClick={pauseGame} className="absolute top-0 left-0 p-2 bg-white rounded-lg border-2 border-gray-300 hover:bg-gray-100 shadow-sm active:scale-95 transition-transform"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" /></svg></button>
-              <div className="flex flex-col space-y-2 ml-14">
-                <span className="text-4xl font-bold tracking-wide">第 {gameState.level} 关</span>
-                <div className="flex flex-col items-start space-y-1">
-                   <span className="text-xl text-gray-800 font-bold px-3 py-1 bg-gray-200 rounded-lg border-2 border-gray-300 shadow-sm">{materialNameMap[currentConfig.material]}</span>
-                   <div className="flex items-baseline space-x-2 mt-1"><span className="text-xl font-bold text-gray-600">烦恼值:</span><span className="text-2xl font-black text-gray-800">{Math.max(0, Math.floor(gameState.currentHp))} <span className="text-lg text-gray-500 font-normal">/ {gameState.maxHp}</span></span></div>
-                </div>
-                <span className="text-xl text-gray-700 font-bold font-mono">时间: {elapsedTime.toFixed(1)}s</span>
-                {gameState.level >= 2 && (<span className="text-sm text-red-600 font-bold animate-pulse border border-red-200 bg-red-50 px-2 py-0.5 rounded w-max">难度: {currentConfig.difficultyText}</span>)}
-              </div>
-              <div className="flex flex-col items-end pt-2"><span className={`text-5xl font-black transition-all duration-100 ${gameState.combo > 1 ? 'scale-110 text-red-600 drop-shadow-md' : 'text-gray-300'}`}>x{gameState.combo}</span><span className="text-sm font-bold text-gray-500 uppercase tracking-widest">连击</span></div>
-            </div>
-            <div className="w-full max-w-md h-8 border-4 border-black rounded-full mt-4 relative bg-white overflow-hidden select-none z-10 shadow-md">
-              <div className="h-full bg-red-500 transition-all duration-200 ease-out" style={{ width: `${(Math.max(0, gameState.currentHp) / gameState.maxHp) * 100}%` }} />
-            </div>
-            <div className="flex-1 flex items-center justify-center w-full relative z-0">
-              <div className={gameStatus === GameStatus.VICTORY ? 'animate-shake' : ''}>
-                 <WoodenFish hpPercentage={(gameState.currentHp / gameState.maxHp) * 100} onClick={handleTap} isHit={isHit} material={currentConfig.material} />
-              </div>
-              {floatingTexts.map(ft => (<div key={ft.id} className="fixed pointer-events-none z-50" style={{ left: ft.x, top: ft.y, transform: `rotate(${ft.rotation}deg)` }}><div className="text-4xl font-black text-red-600 animate-float-up drop-shadow-md whitespace-nowrap">{ft.text}</div></div>))}
-              {ripples.map(r => (<div key={r.id} className="fixed pointer-events-none rounded-full border-4 border-gray-400 animate-ripple z-50" style={{ left: r.x, top: r.y, width: '20px', height: '20px' }} />))}
-              {gameStatus === GameStatus.IDLE && gameState.level === 1 && (<div className="absolute bottom-10 text-gray-400 animate-pulse text-2xl font-bold select-none">点击开始消除烦恼</div>)}
-            </div>
-            <div className="w-full max-w-md mb-8 grid grid-cols-2 gap-4 text-center text-gray-700 text-base font-bold select-none z-10">
-               <div className="border-2 border-black p-3 rounded-lg bg-white shadow-sm">敲击数: {gameState.tapCount}</div>
-               <div className="border-2 border-black p-3 rounded-lg bg-white shadow-sm">最高连击: {gameState.maxComboThisLevel}</div>
-            </div>
-            <button onClick={debugInstantWin} className="fixed bottom-4 right-4 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-1 px-3 rounded shadow-lg opacity-50 hover:opacity-100 z-50 transition-opacity">一键通关 (测试)</button>
-            {gameStatus === GameStatus.PAUSED && (<PauseModal onResume={resumeGame} onRestartLevel={retryLevel} onPrevLevel={prevLevel} showPrevLevel={gameState.level > 1} />)}
-            {showGameComplete ? (<GameCompleteModal history={gameHistory} onRestart={restartGame} />) : (gameStatus === GameStatus.VICTORY && levelStats && showLevelComplete && (<LevelCompleteModal stats={levelStats} onNextLevel={nextLevel} onRetry={retryLevel} />))}
-          </div>
-        );
-      };
-
-      // --- MOUNT ---
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<App />);
-    </script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
