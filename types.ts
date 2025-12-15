@@ -29,6 +29,13 @@ export enum GameStatus {
   UPGRADING = 'UPGRADING' // New status for picking upgrades
 }
 
+export enum EnemyType {
+  NORMAL = 'NORMAL', // 平衡
+  FAST = 'FAST',     // 琐事：血少，速快，体积小
+  TANK = 'TANK',     // 重担：血厚，速慢，体积大
+  BOSS = 'BOSS'      // 魔头：全能
+}
+
 export interface Enemy {
   id: number;
   x: number;
@@ -37,7 +44,8 @@ export interface Enemy {
   hp: number;
   maxHp: number;
   speed: number;
-  isBoss: boolean;
+  type: EnemyType; // New field
+  isBoss: boolean; // Kept for backward compat/logic simplified
   frozen?: boolean;
   lastHitTime?: number;
 }

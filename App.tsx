@@ -8,9 +8,9 @@ import LevelFailedModal from './components/LevelFailedModal';
 import UpgradeModal from './components/UpgradeModal';
 import Loader from './components/Loader';
 
-import { GameState, GameStatus, LevelStats, FloatingText, HitEffect, Ripple, Enemy, Projectile, PlayerStats, UpgradeOption } from './types';
+import { GameState, GameStatus, LevelStats, FloatingText, HitEffect, Ripple, Enemy, Projectile, PlayerStats, UpgradeOption, EnemyType } from './types';
 import { playTapSound, playBreakSound, initAudio } from './utils/audio';
-import { WAVE_CONFIGS, INITIAL_PLAYER_STATS, ENEMY_WORDS, BOSS_WORDS } from './gameConfig';
+import { WAVE_CONFIGS, INITIAL_PLAYER_STATS, ENEMY_WORDS_NORMAL, ENEMY_WORDS_FAST, ENEMY_WORDS_TANK, BOSS_WORDS } from './gameConfig';
 
 const BASE_HP = 3; // Base Player lives
 
@@ -104,8 +104,47 @@ const App: React.FC = () => {
     const x = window.innerWidth / 2 + Math.cos(angle) * radius;
     const y = window.innerHeight / 2 + Math.sin(angle) * radius;
     
-    const isBoss = Math.random() < config.bossChance;
-    const wordList = isBoss ? BOSS_WORDS : ENEMY_WORDS;
+    // Determine Enemy Type
+    const rand = Math.random();
+    let type = EnemyType.NORMAL;
+    let isBoss = false;
+
+    if (rand < config.bossChance) {
+        type = EnemyType.BOSS;
+        isBoss = true;
+    } else if (rand < 0.25) { // 25% chance for FAST
+        type = EnemyType.FAST;
+    } else if (rand < 0.45) { // 20% chance for TANK
+        type = EnemyType.TANK;
+    }
+
+    // Determine Attributes based on Type
+    let wordList = ENEMY_WORDS_NORMAL;
+    let hpMultiplier = 1;
+    let speedMultiplier = 1;
+
+    switch (type) {
+        case EnemyType.BOSS:
+            wordList = BOSS_WORDS;
+            hpMultiplier = 5;
+            speedMultiplier = 0.5;
+            break;
+        case EnemyType.FAST:
+            wordList = ENEMY_WORDS_FAST;
+            hpMultiplier = 0.5; // Fragile
+            speedMultiplier = 1.4; // Fast
+            break;
+        case EnemyType.TANK:
+            wordList = ENEMY_WORDS_TANK;
+            hpMultiplier = 2.5; // Durable
+            speedMultiplier = 0.6; // Slow
+            break;
+        case EnemyType.NORMAL:
+        default:
+            wordList = ENEMY_WORDS_NORMAL;
+            break;
+    }
+
     const text = wordList[Math.floor(Math.random() * wordList.length)];
     
     const enemy: Enemy = {
@@ -113,9 +152,10 @@ const App: React.FC = () => {
       x,
       y,
       text,
-      hp: isBoss ? config.enemyHp * 5 : config.enemyHp,
-      maxHp: isBoss ? config.enemyHp * 5 : config.enemyHp,
-      speed: isBoss ? config.enemySpeed * 0.5 : config.enemySpeed,
+      hp: config.enemyHp * hpMultiplier,
+      maxHp: config.enemyHp * hpMultiplier,
+      speed: config.enemySpeed * speedMultiplier,
+      type,
       isBoss
     };
     
@@ -303,12 +343,17 @@ const App: React.FC = () => {
                     spawnFloatingText(e.x, e.y - 20, text, color, h.isCrit ? 1.5 : 1);
                 });
 
-                // Knockback
+                // Knockback based on enemy type resistance
+                let kbMultiplier = 1;
+                if (e.type === EnemyType.TANK) kbMultiplier = 0.5;
+                if (e.type === EnemyType.BOSS) kbMultiplier = 0.2;
+                if (e.type === EnemyType.FAST) kbMultiplier = 1.2;
+
                 const dx = e.x - centerX;
                 const dy = e.y - centerY;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                const kbX = (dx/dist) * playerStats.knockback;
-                const kbY = (dy/dist) * playerStats.knockback;
+                const kbX = (dx/dist) * playerStats.knockback * kbMultiplier;
+                const kbY = (dy/dist) * playerStats.knockback * kbMultiplier;
 
                 return { 
                     ...e, 
@@ -502,6 +547,55 @@ const App: React.FC = () => {
     }
   };
 
+  // --- UI Helpers ---
+  const getEnemyStyle = (type: EnemyType, isHit: boolean) => {
+    // Base classes common to all
+    let containerClass = "relative flex flex-col items-center justify-center border-2 border-black border-sketchy shadow-[3px_3px_0px_rgba(0,0,0,0.15)] transition-all duration-100 animate-float-slight ";
+    let textClass = "font-black tracking-widest whitespace-nowrap font-hand leading-none ";
+    let barColor = "bg-gray-800";
+    let baseRotation = "1deg";
+
+    if (isHit) {
+        containerClass += "brightness-125 saturate-150 ";
+    }
+
+    switch (type) {
+        case EnemyType.BOSS:
+            containerClass += "bg-yellow-100 px-6 py-3 min-w-[110px] border-4 border-red-900 shadow-[5px_5px_0px_rgba(50,0,0,0.2)]";
+            textClass += "text-3xl text-red-900 mb-2 drop-shadow-sm";
+            barColor = "bg-red-600";
+            baseRotation = "-2deg";
+            break;
+
+        case EnemyType.TANK:
+            // Heavy, blocky, dark
+            containerClass += "bg-stone-200 px-5 py-4 min-w-[100px] border-[3px] rounded-none";
+            textClass += "text-xl text-stone-800 mb-1.5 font-sans font-extrabold";
+            barColor = "bg-stone-600";
+            baseRotation = "0deg";
+            break;
+
+        case EnemyType.FAST:
+            // Small, erratic, scrap paper
+            containerClass += "bg-orange-50 px-3 py-1.5 min-w-[60px] rounded-[50%] border-dashed border-orange-800";
+            textClass += "text-base text-orange-900 mb-1";
+            barColor = "bg-orange-500";
+            baseRotation = `${(Math.random() - 0.5) * 10}deg`; // Random jagged rotation
+            break;
+
+        case EnemyType.NORMAL:
+        default:
+            // Standard paper note
+            containerClass += "bg-white px-4 py-2 min-w-[80px]";
+            textClass += "text-xl text-gray-900 mb-1.5";
+            barColor = "bg-gray-800";
+            baseRotation = "1deg";
+            break;
+    }
+
+    return { containerClass, textClass, barColor, baseRotation };
+  };
+
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-between p-4 overflow-hidden">
       
@@ -610,6 +704,7 @@ const App: React.FC = () => {
         {enemies.map(e => {
             // Check if enemy was recently hit for flash effect
             const isHitRecently = Date.now() - (e.lastHitTime || 0) < 150;
+            const { containerClass, textClass, barColor, baseRotation } = getEnemyStyle(e.type, isHitRecently);
             
             return (
             <div
@@ -622,24 +717,13 @@ const App: React.FC = () => {
                     zIndex: e.isBoss ? 20 : 10
                 }}
             >
-                {/* Enemy Paper Container - Enhanced */}
+                {/* Enemy Paper Container - Dynamic */}
                 <div 
-                    className={`
-                       relative flex flex-col items-center justify-center
-                       border-2 border-black border-sketchy
-                       shadow-[3px_3px_0px_rgba(0,0,0,0.15)]
-                       transition-all duration-100 animate-float-slight
-                       ${e.isBoss 
-                          ? 'bg-yellow-100 px-6 py-3 min-w-[100px]' 
-                          : 'bg-white px-4 py-2 min-w-[80px]'
-                       }
-                       ${isHitRecently ? 'brightness-125 saturate-150 border-red-900' : ''} 
-                    `}
-                    style={{ '--base-rot': e.isBoss ? '-1deg' : '1deg' } as React.CSSProperties}
+                    className={containerClass}
+                    style={{ '--base-rot': baseRotation } as React.CSSProperties}
                 >
                     <span 
-                        className={`font-black tracking-widest whitespace-nowrap font-hand leading-none
-                        ${e.isBoss ? 'text-2xl text-red-900 mb-2' : 'text-xl text-gray-900 mb-1.5'}`}
+                        className={textClass}
                         style={{ textShadow: e.isBoss ? '1px 1px 0px rgba(200,0,0,0.1)' : 'none' }}
                     >
                         {e.text}
@@ -648,7 +732,7 @@ const App: React.FC = () => {
                     {/* Enemy HP Bar - Sketchy Style */}
                     <div className="w-full h-2 bg-black/5 rounded-full overflow-hidden border border-black/20 relative">
                         <div 
-                            className={`h-full transition-all duration-100 relative ${e.isBoss ? 'bg-red-600' : 'bg-gray-800'}`} 
+                            className={`h-full transition-all duration-100 relative ${barColor}`} 
                             style={{width: `${(e.hp / e.maxHp) * 100}%`}}
                         >
                             {/* Texture overlay for the bar */}
@@ -660,6 +744,18 @@ const App: React.FC = () => {
                     {e.isBoss && (
                         <div className="absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full border-2 border-black flex items-center justify-center text-white text-[10px] font-bold shadow-sm transform rotate-12 z-20 border-sketchy-sm">
                             魔
+                        </div>
+                    )}
+                    {/* Tank Stamp (Weight) */}
+                    {e.type === EnemyType.TANK && (
+                         <div className="absolute -bottom-2 -left-2 w-6 h-6 bg-stone-700 rounded-sm border-2 border-black flex items-center justify-center text-white text-[8px] font-bold shadow-sm transform -rotate-12 z-20">
+                            重
+                        </div>
+                    )}
+                    {/* Fast Stamp (Lightning) */}
+                    {e.type === EnemyType.FAST && (
+                         <div className="absolute -top-2 -right-1 w-5 h-5 bg-orange-500 rounded-full border border-black flex items-center justify-center text-white text-[10px] font-bold shadow-sm transform rotate-6 z-20">
+                            ⚡
                         </div>
                     )}
                 </div>
